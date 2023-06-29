@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:tools="http://schemas.android.com/tools"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical"
+              tools:context=".ui.main.AboutDialogFragment" android:padding="20dp"
+              android:gravity="center" tools:visibility="visible">
+
+
+    <ImageView
+            android:src="@drawable/ic_launcher_foreground"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:id="@+id/imageView2"
+            android:background="@color/ic_launcher_background"
+            android:contentDescription="@string/icon"/>
+    <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/TextAppearance.AppCompat.Large" android:id="@+id/app_name"
+            android:layout_margin="10dp"/>
+
+    <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAlignment="center" android:id="@+id/app_id"/>
+    <TextView
+            android:id="@+id/app_version"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:ellipsize="none"
+            android:maxLines="2" android:textAlignment="center"/>
+    <TextView
+            android:text="@string/copyright"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:id="@+id/copyright" android:layout_marginTop="10dp"/>
+
+</LinearLayout>

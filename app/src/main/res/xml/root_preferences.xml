@@ -1,0 +1,10 @@
+<PreferenceScreen
+        xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <EditTextPreference
+            app:key="base_path"
+            app:title="@string/base_path"
+            app:defaultValue="http://LAT16.lab.gematik.de:8041"
+            app:useSimpleSummaryProvider="true"/>
+
+</PreferenceScreen>
