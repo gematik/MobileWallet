@@ -14,8 +14,8 @@
     <string name="disconnected">Disconnected</string>
     <string name="connection_card">Connection</string>
     <string name="credential_card">Credential</string>
-    <string name="credential_confirmation_title">Credential Request</string>
-    <string name="credential_confirmation_prompt">Do you want to receive:</string>
+    <string name="credential_confirmation_title">Credential Offer</string>
+    <string name="credential_confirmation_prompt">Do you want to request:</string>
     <string name="presentation_confirmation_title">Issue Presentation</string>
     <string name="presentation_confirmation_prompt">Do you want to share:</string>
     <string name="about_dialog">%1$s\napp id: %2$s\nversion: %3$s"</string>

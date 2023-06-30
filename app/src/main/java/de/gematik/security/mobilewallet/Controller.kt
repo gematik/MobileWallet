@@ -10,6 +10,7 @@ import de.gematik.security.credentialExchangeLib.crypto.KeyPair
 import de.gematik.security.credentialExchangeLib.extensions.hexToByteArray
 import de.gematik.security.credentialExchangeLib.protocols.*
 import de.gematik.security.mobilewallet.ui.main.CREDENTIALS_PAGE_ID
+import de.gematik.security.mobilewallet.ui.main.CredentialOfferDialogFragment
 import de.gematik.security.mobilewallet.ui.main.MainViewModel
 import kotlinx.coroutines.*
 import kotlinx.serialization.json.Json
@@ -177,13 +178,10 @@ class Controller(val mainActivity: MainActivity) {
     }
 
     private suspend fun handleCredentialOffer(context: CredentialExchangeHolderContext, offer: CredentialOffer): Boolean {
-        val request = CredentialRequest(
-            UUID.randomUUID().toString(),
-            outputDescriptor = offer.outputDescriptor,
-            holderKey = credentialHolder.didKey.toString()
-        )
-        context.requestCredential(request)
-        Log.d(TAG, "sent: ${request.type}")
+        withContext(Dispatchers.Main) {
+            CredentialOfferDialogFragment.newInstance(offer.outputDescriptor.type.first{it != "VerifiableCredential"}, context.id)
+                .show(mainActivity.supportFragmentManager, "credential_offer")
+        }
         return true
     }
 
@@ -194,6 +192,16 @@ class Controller(val mainActivity: MainActivity) {
             mainActivity.findViewById<ViewPager2>(R.id.view_pager)?.currentItem = CREDENTIALS_PAGE_ID
         }
         return false
+    }
+
+    suspend fun handleCredentialOfferAccepted(context: CredentialExchangeHolderContext){
+        val request = CredentialRequest(
+            UUID.randomUUID().toString(),
+            outputDescriptor = context.protocolState.offer!!.outputDescriptor,
+            holderKey = credentialHolder.didKey.toString()
+        )
+        context.requestCredential(request)
+        Log.d(TAG, "sent: ${request.type}")
     }
 
 }

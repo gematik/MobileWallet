@@ -14,9 +14,10 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 
 
-private const val ARG_CREDENTIAL_ID = "CredentialId"
 
 class CredentialDetailFragment : Fragment() {
+
+    private val ARG_CREDENTIAL_ID = "CredentialId"
 
     private lateinit var binding: CredentialDetailFragmentBinding
 
