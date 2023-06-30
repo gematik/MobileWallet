@@ -110,7 +110,7 @@ class Controller(val mainActivity: MainActivity) {
 
     fun start() {
         job = mainActivity.lifecycleScope.launch {
-            CredentialExchangeHolder.listen(factory = WsConnection) {
+            CredentialExchangeHolderContext.listen(WsConnection) {
                 while (true) {
                     val message = it.receive()
                     Log.d(TAG, "received: ${message.type}")
@@ -134,7 +134,7 @@ class Controller(val mainActivity: MainActivity) {
             invitationCache.addConnection(invitation)
             invitation.service[0].serviceEndpoint?.let { serviceEndpoint ->
                 Log.d(TAG, "invitation accepted from ${serviceEndpoint.host}")
-                CredentialExchangeHolder.connect(
+                CredentialExchangeHolderContext.connect(
                     WsConnection,
                     host = serviceEndpoint.host,
                     serviceEndpoint.port,
@@ -166,7 +166,7 @@ class Controller(val mainActivity: MainActivity) {
         credentialCache.removeCredential(id)
     }
 
-    private suspend fun handleIncomingMessage(context: CredentialExchangeHolder, message: LdObject): Boolean {
+    private suspend fun handleIncomingMessage(context: CredentialExchangeHolderContext, message: LdObject): Boolean {
         val type = message.type ?: return true //ignore
         return when {
             type.contains("Close") -> false // close connection
@@ -176,7 +176,7 @@ class Controller(val mainActivity: MainActivity) {
         }
     }
 
-    private suspend fun handleCredentialOffer(context: CredentialExchangeHolder, offer: CredentialOffer): Boolean {
+    private suspend fun handleCredentialOffer(context: CredentialExchangeHolderContext, offer: CredentialOffer): Boolean {
         val request = CredentialRequest(
             UUID.randomUUID().toString(),
             outputDescriptor = offer.outputDescriptor,
@@ -187,7 +187,7 @@ class Controller(val mainActivity: MainActivity) {
         return true
     }
 
-    private suspend fun handleCredentialSubmit(context: CredentialExchangeHolder, submit: CredentialSubmit): Boolean {
+    private suspend fun handleCredentialSubmit(context: CredentialExchangeHolderContext, submit: CredentialSubmit): Boolean {
         credentialCache.addCredential(submit.credential)
         Log.d(TAG, "stored: ${submit.credential.type}}")
         withContext(Dispatchers.Main) {
