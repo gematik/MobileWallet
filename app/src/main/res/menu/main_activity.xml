@@ -9,7 +9,7 @@
     <item android:id="@+id/about"
           android:icon="@android:drawable/ic_menu_info_details"
           android:title="@string/about" app:showAsAction="ifRoom"/>
-    <item android:id="@+id/selfTest"
+    <item android:id="@+id/invitation"
           android:icon="@android:drawable/ic_menu_info_details"
-          android:title="@string/selfTest" app:showAsAction="ifRoom"/>
+          android:title="@string/invitation" app:showAsAction="ifRoom"/>
 </menu>

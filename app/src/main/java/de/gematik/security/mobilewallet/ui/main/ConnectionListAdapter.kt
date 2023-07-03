@@ -56,7 +56,7 @@ class ConnectionListAdapter(private val activity: MainActivity) :
 
         fun bind(invitation: Invitation) {
             binding.apply {
-                connectionId.text = invitation.id
+                connectionId.text = "${invitation.id.substring(0..7)}..${invitation.id.substring(24)}"
                 label.text = invitation.label
             }
         }

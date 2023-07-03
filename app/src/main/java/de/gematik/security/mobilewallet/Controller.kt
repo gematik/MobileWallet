@@ -90,6 +90,10 @@ class Controller(val mainActivity: MainActivity) {
             viewModel.addCredential(credential)
         }
 
+        fun getCredential(id: String) : Map.Entry<String, Credential> {
+            return credentials.firstNotNullOf { it }
+        }
+
         fun removeCredential(id: String) {
             credentials.remove(id)
             viewModel.removeCredential(id)
@@ -165,6 +169,10 @@ class Controller(val mainActivity: MainActivity) {
 
     fun removeCredential(id: String) {
         credentialCache.removeCredential(id)
+    }
+
+    fun getCredential(id: String) : Map.Entry<String, Credential> {
+        return credentialCache.getCredential(id)
     }
 
     private suspend fun handleIncomingMessage(context: CredentialExchangeHolderContext, message: LdObject): Boolean {

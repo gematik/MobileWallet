@@ -10,7 +10,7 @@
     <string name="sync">Synchronization</string>
     <string name="settings">Settings</string>
     <string name="about">About</string>
-    <string name="selfTest">Self Test</string>
+    <string name="invitation">Invitation</string>
     <string name="disconnected">Disconnected</string>
     <string name="connection_card">Connection</string>
     <string name="credential_card">Credential</string>
@@ -22,10 +22,13 @@
     <string name="icon">icon</string>
     <string name="yes">Yes</string>
     <string name="no">No</string>
+    <string name="cancel">Cancel</string>
 
     <string name="request_credential">Request Credential</string>
-    <string name="copyright">"Copyright \u00A9 2023 gematik"</string>
+    <string name="offer_credential">Offer Credential</string>
 
+
+    <string name="copyright">"Copyright \u00A9 2023 gematik"</string>
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <!-- Preferences -->

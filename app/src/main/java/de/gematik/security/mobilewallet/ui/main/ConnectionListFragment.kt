@@ -2,6 +2,8 @@ package de.gematik.security.mobilewallet.ui.main
 
 import android.os.Bundle
 import android.view.*
+import androidx.core.view.MenuHost
+import androidx.core.view.MenuProvider
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import de.gematik.security.mobilewallet.MainActivity
@@ -11,11 +13,6 @@ import de.gematik.security.mobilewallet.databinding.ConnectionListFragmentBindin
 class ConnectionListFragment : Fragment() {
 
     private lateinit var binding: ConnectionListFragmentBinding
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setHasOptionsMenu(true)
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -32,17 +29,25 @@ class ConnectionListFragment : Fragment() {
         return binding.root
     }
 
-    override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
-        inflater.inflate(R.menu.connection_list_fragment, menu)
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        when (item.itemId) {
-            R.id.delete_all_connections -> {
-                (activity as MainActivity).controller.removeAllConnections()
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        val menuHost: MenuHost = requireActivity()
+        menuHost.addMenuProvider(object : MenuProvider{
+            override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
+                // Add menu items here
+                menuInflater.inflate(R.menu.connection_list_fragment, menu)
             }
-        }
-        return false
+
+            override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
+                return when (menuItem.itemId) {
+                    R.id.delete_all_connections -> {
+                        (activity as MainActivity).controller.removeAllConnections()
+                        true
+                    }
+                    else -> false
+                }
+            }
+        })
     }
 
     override fun onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo?) {
@@ -66,8 +71,8 @@ class ConnectionListFragment : Fragment() {
                 val viewModel by activityViewModels<MainViewModel>()
                 val pos = (binding.connectionList.adapter as ConnectionListAdapter)
                     .clickedPosition
-                val recordId = viewModel.connections.value?.get(pos)?.id
-                recordId?.let {
+                val connectionId = viewModel.connections.value?.get(pos)?.id
+                connectionId?.let {
                     (activity as MainActivity).controller.removeConnection(it)
                 }
                 true

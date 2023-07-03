@@ -22,6 +22,8 @@ import java.time.format.DateTimeFormatter
 class CredentialListAdapter(private val activity: MainActivity) :
     ListAdapter<Pair<String, Credential>, RecyclerView.ViewHolder>(CredentialDiffCallback) {
 
+    var clickedPosition: Int = -1
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         // Create a new view, which defines the UI of credential card
         return CredentialViewHolder(
@@ -50,11 +52,17 @@ class CredentialListAdapter(private val activity: MainActivity) :
                         .addToBackStack("connection_confirm").commit()
                 }
             }
+            binding.root.setOnLongClickListener {
+                clickedPosition = adapterPosition
+                false
+            }
+            binding.root.isLongClickable = true
+
         }
 
         fun bind(entry: Pair<String, Credential> ) {
             binding.apply {
-                credentialId.text = entry.first
+                credentialId.text = "${entry.first.substring(0..7)}..${entry.first.substring(24)}"
                 when {
                     entry.second.type.contains("PermanentResidentCard") -> {
                         title.text = "Resident Card"
