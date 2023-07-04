@@ -9,6 +9,7 @@ import de.gematik.security.credentialExchangeLib.protocols.Credential
 import de.gematik.security.credentialExchangeLib.protocols.Invitation
 import de.gematik.security.credentialExchangeLib.protocols.Service
 import de.gematik.security.mobilewallet.MainActivity
+import de.gematik.security.mobilewallet.Settings
 import de.gematik.security.mobilewallet.databinding.ShowInvitationDialogFragmentBinding
 import de.gematik.security.mobilewallet.qrCode
 import java.net.Inet4Address
@@ -72,7 +73,7 @@ class ShowInvitationDialogFragment : DialogFragment() {
             invitationId.toString(),
             label = label,
             service = listOf(
-                Service(serviceEndpoint = URI("ws", null, address.hostAddress, 8090, "/ws", null, null))
+                Service(serviceEndpoint = URI("ws", null, address.hostAddress, Settings.wsServerPort, "/ws", null, null))
             )
         )
     }

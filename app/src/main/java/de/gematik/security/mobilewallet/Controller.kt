@@ -115,7 +115,7 @@ class Controller(val mainActivity: MainActivity) {
 
     fun start() {
         job = mainActivity.lifecycleScope.launch {
-            CredentialExchangeHolderContext.listen(WsConnection) {
+            CredentialExchangeHolderContext.listen(WsConnection, port = Settings.wsServerPort) {
                 while (true) {
                     val message = it.receive()
                     Log.d(TAG, "received: ${message.type}")
