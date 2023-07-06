@@ -90,7 +90,7 @@ class Controller(val mainActivity: MainActivity) {
             viewModel.addCredential(credential)
         }
 
-        fun getCredential(id: String) : Map.Entry<String, Credential> {
+        fun getCredential(id: String): Map.Entry<String, Credential> {
             return credentials.firstNotNullOf { it }
         }
 
@@ -115,7 +115,7 @@ class Controller(val mainActivity: MainActivity) {
 
     fun start() {
         job = mainActivity.lifecycleScope.launch {
-            CredentialExchangeHolderContext.listen(WsConnection, port = Settings.wsServerPort) {
+            CredentialExchangeHolderProtocol.listen(WsConnection, port = Settings.wsServerPort) {
                 while (true) {
                     val message = it.receive()
                     Log.d(TAG, "received: ${message.type}")
@@ -135,11 +135,11 @@ class Controller(val mainActivity: MainActivity) {
     }
 
     fun acceptInvitation(invitation: Invitation) {
-        mainActivity.lifecycleScope.launch {
+        mainActivity.lifecycleScope.launch(CoroutineName("")) {
             invitationCache.addConnection(invitation)
             invitation.service[0].serviceEndpoint?.let { serviceEndpoint ->
                 Log.d(TAG, "invitation accepted from ${serviceEndpoint.host}")
-                CredentialExchangeHolderContext.connect(
+                CredentialExchangeHolderProtocol.connect(
                     WsConnection,
                     host = serviceEndpoint.host,
                     serviceEndpoint.port,
@@ -171,11 +171,11 @@ class Controller(val mainActivity: MainActivity) {
         credentialCache.removeCredential(id)
     }
 
-    fun getCredential(id: String) : Map.Entry<String, Credential> {
+    fun getCredential(id: String): Map.Entry<String, Credential> {
         return credentialCache.getCredential(id)
     }
 
-    private suspend fun handleIncomingMessage(context: CredentialExchangeHolderContext, message: LdObject): Boolean {
+    private suspend fun handleIncomingMessage(context: CredentialExchangeHolderProtocol, message: LdObject): Boolean {
         val type = message.type ?: return true //ignore
         return when {
             type.contains("Close") -> false // close connection
@@ -185,15 +185,24 @@ class Controller(val mainActivity: MainActivity) {
         }
     }
 
-    private suspend fun handleCredentialOffer(context: CredentialExchangeHolderContext, offer: CredentialOffer): Boolean {
+    private suspend fun handleCredentialOffer(
+        protocolInstance: CredentialExchangeHolderProtocol,
+        offer: CredentialOffer
+    ): Boolean {
         withContext(Dispatchers.Main) {
-            CredentialOfferDialogFragment.newInstance(offer.outputDescriptor.type.first{it != "VerifiableCredential"}, context.id)
+            CredentialOfferDialogFragment.newInstance(
+                offer.outputDescriptor.frame.type.first { it != "VerifiableCredential" },
+                protocolInstance.id
+            )
                 .show(mainActivity.supportFragmentManager, "credential_offer")
         }
         return true
     }
 
-    private suspend fun handleCredentialSubmit(context: CredentialExchangeHolderContext, submit: CredentialSubmit): Boolean {
+    private suspend fun handleCredentialSubmit(
+        protocolInstance: CredentialExchangeHolderProtocol,
+        submit: CredentialSubmit
+    ): Boolean {
         credentialCache.addCredential(submit.credential)
         Log.d(TAG, "stored: ${submit.credential.type}}")
         withContext(Dispatchers.Main) {
@@ -202,13 +211,15 @@ class Controller(val mainActivity: MainActivity) {
         return false
     }
 
-    suspend fun handleCredentialOfferAccepted(context: CredentialExchangeHolderContext){
+    suspend fun handleCredentialOfferAccepted(
+        protocolInstance: CredentialExchangeHolderProtocol
+    ) {
         val request = CredentialRequest(
             UUID.randomUUID().toString(),
-            outputDescriptor = context.protocolState.offer!!.outputDescriptor,
+            outputDescriptor = protocolInstance.protocolState.offer!!.outputDescriptor,
             holderKey = credentialHolder.didKey.toString()
         )
-        context.requestCredential(request)
+        protocolInstance.requestCredential(request)
         Log.d(TAG, "sent: ${request.type}")
     }
 
