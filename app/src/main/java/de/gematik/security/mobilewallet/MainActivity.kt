@@ -5,22 +5,15 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
-import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.lifecycleScope
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import de.gematik.security.credentialExchangeLib.json
 import de.gematik.security.credentialExchangeLib.protocols.Invitation
-import de.gematik.security.credentialExchangeLib.protocols.Service
 import de.gematik.security.mobilewallet.ui.main.AboutDialogFragment
 import de.gematik.security.mobilewallet.ui.main.MainPagerFragment
 import de.gematik.security.mobilewallet.ui.main.ShowInvitationDialogFragment
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import java.net.Inet4Address
-import java.net.NetworkInterface
 import java.net.URI
 import java.util.*
 
@@ -45,7 +38,7 @@ class MainActivity : AppCompatActivity() {
         qrCodeScannerLauncher = registerForActivityResult(ScanContract())
         {
             if (it.contents != null) {
-                val oob = URI.create(it.contents).query.substringAfter("oob=", "")
+                val oob = URI.create(it.contents).query.substringAfter("oob=", "").substringBefore("&")
                 if (oob.isNotEmpty()) {
                     val invitation = json.decodeFromString<Invitation>(String(Base64.getDecoder().decode(oob)))
                     controller.acceptInvitation(invitation)

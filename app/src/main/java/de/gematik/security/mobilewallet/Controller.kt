@@ -14,6 +14,7 @@ import de.gematik.security.mobilewallet.ui.main.CredentialOfferDialogFragment
 import de.gematik.security.mobilewallet.ui.main.MainViewModel
 import kotlinx.coroutines.*
 import kotlinx.serialization.json.Json
+import java.net.URI
 import java.util.*
 
 
@@ -104,6 +105,24 @@ class Controller(val mainActivity: MainActivity) {
             viewModel.removeAllCredentials()
         }
 
+        fun getFramedCredential(frame: Credential): Credential {
+            //TODO: Implement framing
+//            return credentials.firstNotNullOf {
+//                val transformedRdf = it.value.normalize().trim().replace(Regex("_:c14n[0-9]*"), "<urn:bnid:$0>")
+//                val inputDocument = JsonDocument.of(JsonLd.fromRdf(RdfDocument.of(transformedRdf.byteInputStream())).get())
+//                val frameDocument = emptyVaccinationCredentialFrame.toJsonDocument()
+//                val jsonObject = JsonLd.frame(inputDocument, frameDocument).options(defaultJsonLdOptions).get()
+//                return framedCredential = Json.decodeFromString<Credential>(jsonObject.toString())
+//            }
+            return credentials.firstNotNullOf {
+                if (it.value.type.contains("VaccinationCertificate")) {
+                    it.value
+                } else {
+                    null
+                }
+            }
+        }
+
     }
 
     private val credentialCache = CredentialCache()
@@ -115,7 +134,7 @@ class Controller(val mainActivity: MainActivity) {
 
     fun start() {
         job = mainActivity.lifecycleScope.launch {
-            CredentialExchangeHolderProtocol.listen(WsConnection, port = Settings.wsServerPort) {
+            PresentationExchangeHolderProtocol.listen(WsConnection, port = Settings.wsServerPort) {
                 while (true) {
                     val message = it.receive()
                     Log.d(TAG, "received: ${message.type}")
@@ -142,9 +161,9 @@ class Controller(val mainActivity: MainActivity) {
                 CredentialExchangeHolderProtocol.connect(
                     WsConnection,
                     host = serviceEndpoint.host,
-                    serviceEndpoint.port,
-                    invitation = invitation
+                    serviceEndpoint.port
                 ) {
+                    it.sendInvitation(invitation)
                     while (true) {
                         val message = it.receive()
                         Log.d(TAG, "received: ${message.type}")
@@ -175,12 +194,19 @@ class Controller(val mainActivity: MainActivity) {
         return credentialCache.getCredential(id)
     }
 
-    private suspend fun handleIncomingMessage(context: CredentialExchangeHolderProtocol, message: LdObject): Boolean {
+    fun getFramedCredential(frame: Credential): Credential {
+        return credentialCache.getFramedCredential(frame)
+    }
+
+    private suspend fun handleIncomingMessage(
+        protocolInstance: CredentialExchangeHolderProtocol,
+        message: LdObject
+    ): Boolean {
         val type = message.type ?: return true //ignore
         return when {
             type.contains("Close") -> false // close connection
-            type.contains("CredentialOffer") -> handleCredentialOffer(context, message as CredentialOffer)
-            type.contains("CredentialSubmit") -> handleCredentialSubmit(context, message as CredentialSubmit)
+            type.contains("CredentialOffer") -> handleCredentialOffer(protocolInstance, message as CredentialOffer)
+            type.contains("CredentialSubmit") -> handleCredentialSubmit(protocolInstance, message as CredentialSubmit)
             else -> true //ignore
         }
     }
@@ -221,6 +247,69 @@ class Controller(val mainActivity: MainActivity) {
         )
         protocolInstance.requestCredential(request)
         Log.d(TAG, "sent: ${request.type}")
+    }
+
+    private suspend fun handleIncomingMessage(
+        protocolInstance: PresentationExchangeHolderProtocol,
+        message: LdObject
+    ): Boolean {
+        val type = message.type ?: return true //ignore
+        return when {
+            type.contains("Close") -> false // close connection
+            type.contains("Invitation") -> handleInvitation(protocolInstance, message as Invitation)
+            type.contains("PresentationRequest") -> handlePresentationRequest(
+                protocolInstance,
+                message as PresentationRequest
+            )
+
+            else -> true //ignore
+        }
+    }
+
+    private suspend fun handleInvitation(
+        protocolInstance: PresentationExchangeHolderProtocol,
+        message: Invitation
+    ): Boolean {
+        protocolInstance.sendOffer(
+            PresentationOffer(
+                UUID.randomUUID().toString(),
+                inputDescriptor = Descriptor(
+                    UUID.randomUUID().toString(), Credential(
+                        atContext = Credential.DEFAULT_JSONLD_CONTEXTS + URI("https://w3id.org/vaccination/v1"),
+                        type = Credential.DEFAULT_JSONLD_TYPES + "VaccinationCertificate"
+                    )
+                )
+            )
+        )
+        return true
+    }
+
+    private suspend fun handlePresentationRequest(
+        protocolInstance: PresentationExchangeHolderProtocol,
+        message: PresentationRequest
+    ): Boolean {
+        protocolInstance.submitPresentation(
+            PresentationSubmit(
+                UUID.randomUUID().toString(),
+                presentation = Presentation(
+                    id = UUID.randomUUID().toString(),
+                    verifiableCredential = listOf(credentialCache.getFramedCredential(message.inputDescriptor.frame)),
+                    presentationSubmission = PresentationSubmission(
+                        definitionId = UUID.randomUUID(),
+                        descriptorMap = listOf(
+                            PresentationSubmission.DescriptorMapEntry(
+                                id = message.inputDescriptor.id,
+                                format = ClaimFormat.LDP_VC,
+                                path = "\$.verifiableCredential[0]"
+                            )
+                        )
+
+                    )
+
+                )
+            )
+        )
+        return true
     }
 
 }

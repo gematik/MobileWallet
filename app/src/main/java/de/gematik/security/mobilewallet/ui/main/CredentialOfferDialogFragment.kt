@@ -23,7 +23,7 @@ class CredentialOfferDialogFragment : DialogFragment() {
         super.onCreate(savedInstanceState)
         arguments?.let {
             text = it.getString(ARG_TEXT)
-            protocolInstance = Protocol.getContext(UUID.fromString(it.getString(ARG_PROTOCOL_INSTANCE))) as CredentialExchangeHolderProtocol
+            protocolInstance = Protocol.getProtocolInstance(UUID.fromString(it.getString(ARG_PROTOCOL_INSTANCE_ID))) as CredentialExchangeHolderProtocol
         }
         isCancelable = false
     }
@@ -50,13 +50,13 @@ class CredentialOfferDialogFragment : DialogFragment() {
 
     companion object {
         private val ARG_TEXT = "Text"
-        private val ARG_PROTOCOL_INSTANCE = "ProtocolInstance"
+        private val ARG_PROTOCOL_INSTANCE_ID = "ProtocolInstanceId"
         @JvmStatic
-        fun newInstance(text: String, context: UUID) =
+        fun newInstance(text: String, protocolInstanceId: UUID) =
             CredentialOfferDialogFragment().apply {
                 arguments = Bundle().apply {
                     putString(ARG_TEXT, text)
-                    putString(ARG_PROTOCOL_INSTANCE, context.toString())
+                    putString(ARG_PROTOCOL_INSTANCE_ID, protocolInstanceId.toString())
                 }
             }
     }
