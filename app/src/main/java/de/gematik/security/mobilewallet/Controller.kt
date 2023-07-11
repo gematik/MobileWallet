@@ -4,16 +4,26 @@ import android.util.Log
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.widget.ViewPager2
+import com.apicatalog.jsonld.JsonLd
+import com.apicatalog.jsonld.document.JsonDocument
+import com.apicatalog.jsonld.document.RdfDocument
 import de.gematik.security.credentialExchangeLib.connection.WsConnection
 import de.gematik.security.credentialExchangeLib.crypto.BbsCryptoCredentials
+import de.gematik.security.credentialExchangeLib.crypto.BbsPlusSigner
 import de.gematik.security.credentialExchangeLib.crypto.KeyPair
+import de.gematik.security.credentialExchangeLib.crypto.ProofType
+import de.gematik.security.credentialExchangeLib.defaultJsonLdOptions
+import de.gematik.security.credentialExchangeLib.extensions.deepCopy
 import de.gematik.security.credentialExchangeLib.extensions.hexToByteArray
+import de.gematik.security.credentialExchangeLib.extensions.normalize
+import de.gematik.security.credentialExchangeLib.extensions.toJsonDocument
 import de.gematik.security.credentialExchangeLib.protocols.*
 import de.gematik.security.mobilewallet.ui.main.CREDENTIALS_PAGE_ID
 import de.gematik.security.mobilewallet.ui.main.CredentialOfferDialogFragment
 import de.gematik.security.mobilewallet.ui.main.MainViewModel
 import kotlinx.coroutines.*
-import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.*
+import org.json.JSONArray
 import java.net.URI
 import java.util.*
 
@@ -105,21 +115,17 @@ class Controller(val mainActivity: MainActivity) {
             viewModel.removeAllCredentials()
         }
 
-        fun getFramedCredential(frame: Credential): Credential {
+        fun getFramedCredentials(frame: Credential): List<Credential> {
             //TODO: Implement framing
-//            return credentials.firstNotNullOf {
-//                val transformedRdf = it.value.normalize().trim().replace(Regex("_:c14n[0-9]*"), "<urn:bnid:$0>")
-//                val inputDocument = JsonDocument.of(JsonLd.fromRdf(RdfDocument.of(transformedRdf.byteInputStream())).get())
-//                val frameDocument = emptyVaccinationCredentialFrame.toJsonDocument()
-//                val jsonObject = JsonLd.frame(inputDocument, frameDocument).options(defaultJsonLdOptions).get()
-//                return framedCredential = Json.decodeFromString<Credential>(jsonObject.toString())
-//            }
-            return credentials.firstNotNullOf {
-                if (it.value.type.contains("VaccinationCertificate")) {
-                    it.value
-                } else {
-                    null
-                }
+            return credentials.mapNotNull {
+                val credentialWithoutProof = it.value.deepCopy().apply { proof = null }
+                val transformedRdf =
+                    credentialWithoutProof.normalize().trim().replace(Regex("_:c14n[0-9]*"), "<urn:bnid:$0>")
+                val inputDocument =
+                    JsonDocument.of(JsonLd.fromRdf(RdfDocument.of(transformedRdf.byteInputStream())).get())
+                val frameDocument = frame.toJsonDocument()
+                val jsonObject = JsonLd.frame(inputDocument, frameDocument).options(defaultJsonLdOptions).get()
+                Json.decodeFromString<Credential>(jsonObject.toString())
             }
         }
 
@@ -194,9 +200,7 @@ class Controller(val mainActivity: MainActivity) {
         return credentialCache.getCredential(id)
     }
 
-    fun getFramedCredential(frame: Credential): Credential {
-        return credentialCache.getFramedCredential(frame)
-    }
+    // issue credentials
 
     private suspend fun handleIncomingMessage(
         protocolInstance: CredentialExchangeHolderProtocol,
@@ -225,6 +229,18 @@ class Controller(val mainActivity: MainActivity) {
         return true
     }
 
+    suspend fun handleCredentialOfferAccepted(
+        protocolInstance: CredentialExchangeHolderProtocol
+    ) {
+        val request = CredentialRequest(
+            UUID.randomUUID().toString(),
+            outputDescriptor = protocolInstance.protocolState.offer!!.outputDescriptor,
+            holderKey = credentialHolder.didKey.toString()
+        )
+        protocolInstance.requestCredential(request)
+        Log.d(TAG, "sent: ${request.type}")
+    }
+
     private suspend fun handleCredentialSubmit(
         protocolInstance: CredentialExchangeHolderProtocol,
         submit: CredentialSubmit
@@ -237,17 +253,7 @@ class Controller(val mainActivity: MainActivity) {
         return false
     }
 
-    suspend fun handleCredentialOfferAccepted(
-        protocolInstance: CredentialExchangeHolderProtocol
-    ) {
-        val request = CredentialRequest(
-            UUID.randomUUID().toString(),
-            outputDescriptor = protocolInstance.protocolState.offer!!.outputDescriptor,
-            holderKey = credentialHolder.didKey.toString()
-        )
-        protocolInstance.requestCredential(request)
-        Log.d(TAG, "sent: ${request.type}")
-    }
+    // presentation exchange
 
     private suspend fun handleIncomingMessage(
         protocolInstance: PresentationExchangeHolderProtocol,
@@ -288,12 +294,26 @@ class Controller(val mainActivity: MainActivity) {
         protocolInstance: PresentationExchangeHolderProtocol,
         message: PresentationRequest
     ): Boolean {
+        val credentials = credentialCache.getFramedCredentials(message.inputDescriptor.frame)
+        // pick credential - we pick the first credential without user interaction
+        val derivedCredential = credentialCache.getCredential(credentials.get(0).id!!).value.derive(message.inputDescriptor.frame)
+
+        val ldProofHolder = LdProof(
+            type = listOf(ProofType.BbsBlsSignature2020.name),
+            created = Date(),
+            creator = credentialHolder.didKey,
+            proofPurpose = ProofPurpose.AUTHENTICATION,
+            verificationMethod = credentialHolder.verificationMethod
+        )
+
         protocolInstance.submitPresentation(
             PresentationSubmit(
                 UUID.randomUUID().toString(),
                 presentation = Presentation(
                     id = UUID.randomUUID().toString(),
-                    verifiableCredential = listOf(credentialCache.getFramedCredential(message.inputDescriptor.frame)),
+                    verifiableCredential = listOf(
+                        derivedCredential
+                    ),
                     presentationSubmission = PresentationSubmission(
                         definitionId = UUID.randomUUID(),
                         descriptorMap = listOf(
@@ -306,10 +326,12 @@ class Controller(val mainActivity: MainActivity) {
 
                     )
 
-                )
+                ).apply {
+                    sign(ldProofHolder, BbsPlusSigner(credentialHolder.keyPair))
+                }
             )
         )
-        return true
+        return false
     }
 
 }

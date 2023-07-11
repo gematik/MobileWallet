@@ -13,7 +13,7 @@ android {
         minSdk 29
         targetSdk 33
         versionCode 1
-        versionName "0.2.0"
+        versionName "0.3.0-SNAPSHOT"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -50,7 +50,7 @@ dependencies {
     implementation "org.jetbrains.kotlinx:kotlinx-datetime-jvm:0.4.0"
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1'
 
-    implementation ('de.gematik:credentialExchangeLib:0.2.0-SNAPSHOT') {
+    implementation ('de.gematik:credentialExchangeLib:0.3.0-SNAPSHOT') {
         exclude group: 'net.jcip', module: 'jcip-annotations'
     }
     implementation 'org.slf4j:slf4j-api:2.0.7'
