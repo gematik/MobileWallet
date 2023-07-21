@@ -81,7 +81,6 @@ class MainActivity : AppCompatActivity() {
 //            true
 //        }
             R.id.sync -> {
-                controller.restart()
                 true
             }
             R.id.about -> {

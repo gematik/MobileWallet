@@ -5,13 +5,17 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import de.gematik.security.credentialExchangeLib.credentialSubjects.Insurance
+import de.gematik.security.credentialExchangeLib.credentialSubjects.InsuranceType
+import de.gematik.security.credentialExchangeLib.credentialSubjects.VaccinationEvent
+import de.gematik.security.credentialExchangeLib.json
 import de.gematik.security.credentialExchangeLib.protocols.Credential
 import de.gematik.security.mobilewallet.MainActivity
 import de.gematik.security.mobilewallet.R
 import de.gematik.security.mobilewallet.databinding.CredentialCardBinding
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonObject
+import de.gematik.security.mobilewallet.toSimpleString
+import kotlinx.datetime.LocalDate
+import kotlinx.serialization.json.*
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -77,21 +81,29 @@ class CredentialListAdapter(private val activity: MainActivity) :
                         imageView.setImageDrawable(activity.getDrawable(R.drawable.ic_identitycard))
                     }
 
+                    entry.second.type.contains("InsuranceCertificate") -> {
+                        title.text = "Insurance Certificate"
+                        json.decodeFromJsonElement<Insurance>(entry.second.credentialSubject!!).let {
+                            content.text = String.format(
+                                "%s - %s - %s\n%s",
+                                it.insurant.insurantId,
+                                it.coverage?.start?.toSimpleString(),
+                                it.coverage?.insuranceType?.name,
+                                it.coverage?.costCenter?.name
+                            )
+                            imageView.setImageDrawable(activity.getDrawable(R.drawable.ic_identitycard))
+                        }
+                    }
+
                     entry.second.type.contains("VaccinationCertificate") -> {
                         title.text = "Vaccination Certificate"
-                        JsonObject(entry.second.credentialSubject as Map<String, JsonElement>).let {
+                        json.decodeFromJsonElement<VaccinationEvent>(entry.second.credentialSubject!!).let {
                             content.text = String.format(
-                                "%s - %s\n%s",
-                                it.get("vaccine")?.jsonObject?.get("medicinalProductName") ?: "",
-                                runCatching {
-                                    LocalDateTime.parse(
-                                        it.get("dateOfVaccination").toString(),
-                                        DateTimeFormatter.ISO_DATE_TIME
-                                    ).format(
-                                        DateTimeFormatter.ISO_LOCAL_DATE
-                                    )
-                                }.getOrNull() ?: "",
-                                it.get("administeringCentre")
+                                "%s - %s - %s\n%s",
+                                it.vaccine?.medicalProductName,
+                                it.dateOfVaccination?.toSimpleString(),
+                                it.order,
+                                it.administeringCentre
                             )
                             imageView.setImageDrawable(activity.getDrawable(R.drawable.ic_vaccination))
                         }
@@ -124,6 +136,7 @@ class CredentialListAdapter(private val activity: MainActivity) :
                     }
 
                     else -> {
+                        title.text = "Certificate"
                         content.text = "Unknown credential type"
                         imageView.setImageDrawable(activity.getDrawable(R.drawable.ic_nccard))
                     }

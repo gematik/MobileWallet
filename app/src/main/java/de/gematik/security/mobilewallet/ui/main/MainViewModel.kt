@@ -35,14 +35,9 @@ class MainViewModel : ViewModel() {
         connections.value = arrayListOf()
     }
 
-    fun addCredential(credential: Credential) {
+    fun addCredential(credential: Pair<String, Credential>) {
         credentials.postValue(credentials.value?.apply {
-            val id = credential.id
-            if(id!=null) {
-                if (count { it.first == id } == 0) add(Pair(id, credential))
-            }else{
-                add(Pair(UUID.randomUUID().toString(), credential))
-            }
+                add(credential)
         })
     }
 

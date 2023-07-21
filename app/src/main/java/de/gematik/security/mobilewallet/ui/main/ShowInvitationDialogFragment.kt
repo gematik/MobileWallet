@@ -29,7 +29,7 @@ class ShowInvitationDialogFragment : DialogFragment() {
         setStyle(STYLE_NORMAL, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
         arguments?.let {
             it.getString(ARG_CREDENTIAL_ID)?.let {
-                credential = (activity as MainActivity).controller.getCredential(it).value
+                credential = (activity as MainActivity).controller.getCredential(it)?.value
             }
         }
         isCancelable = false

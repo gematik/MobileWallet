@@ -73,7 +73,7 @@ class CredentialListFragment : Fragment() {
 
             R.id.delete_credential -> {
                 val viewModel by activityViewModels<MainViewModel>()
-                val pos = (binding.credentialList.adapter as ConnectionListAdapter)
+                val pos = (binding.credentialList.adapter as CredentialListAdapter)
                     .clickedPosition
                 val recordId = viewModel.credentials.value?.get(pos)?.first
                 recordId?.let {

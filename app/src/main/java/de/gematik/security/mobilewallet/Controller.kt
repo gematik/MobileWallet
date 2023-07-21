@@ -5,8 +5,6 @@ import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.widget.ViewPager2
 import com.apicatalog.jsonld.JsonLd
-import com.apicatalog.jsonld.document.JsonDocument
-import com.apicatalog.jsonld.document.RdfDocument
 import de.gematik.security.credentialExchangeLib.connection.WsConnection
 import de.gematik.security.credentialExchangeLib.crypto.BbsCryptoCredentials
 import de.gematik.security.credentialExchangeLib.crypto.BbsPlusSigner
@@ -15,15 +13,22 @@ import de.gematik.security.credentialExchangeLib.crypto.ProofType
 import de.gematik.security.credentialExchangeLib.defaultJsonLdOptions
 import de.gematik.security.credentialExchangeLib.extensions.deepCopy
 import de.gematik.security.credentialExchangeLib.extensions.hexToByteArray
-import de.gematik.security.credentialExchangeLib.extensions.normalize
 import de.gematik.security.credentialExchangeLib.extensions.toJsonDocument
+import de.gematik.security.credentialExchangeLib.json
 import de.gematik.security.credentialExchangeLib.protocols.*
 import de.gematik.security.mobilewallet.ui.main.CREDENTIALS_PAGE_ID
 import de.gematik.security.mobilewallet.ui.main.CredentialOfferDialogFragment
 import de.gematik.security.mobilewallet.ui.main.MainViewModel
+import io.ktor.http.*
+import io.ktor.server.application.*
+import io.ktor.server.cio.*
+import io.ktor.server.engine.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 import kotlinx.coroutines.*
-import kotlinx.serialization.json.*
-import org.json.JSONArray
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.net.URI
 import java.util.*
 
@@ -35,8 +40,6 @@ import java.util.*
 
 class Controller(val mainActivity: MainActivity) {
     val TAG = Controller::class.java.name
-
-    private lateinit var job: Job
 
     val credentialHolder = BbsCryptoCredentials(
         KeyPair(
@@ -97,12 +100,13 @@ class Controller(val mainActivity: MainActivity) {
         val viewModel by mainActivity.viewModels<MainViewModel>()
 
         fun addCredential(credential: Credential) {
-            credentials.put(credential.id ?: UUID.randomUUID().toString(), credential)
-            viewModel.addCredential(credential)
+            val id = credential.id ?: UUID.randomUUID().toString()
+            credentials.put(id, credential)
+            viewModel.addCredential(Pair(id, credential))
         }
 
-        fun getCredential(id: String): Map.Entry<String, Credential> {
-            return credentials.firstNotNullOf { it }
+        fun getCredential(id: String): Map.Entry<String, Credential>? {
+            return credentials.firstNotNullOfOrNull { if (it.key == id) it else null }
         }
 
         fun removeCredential(id: String) {
@@ -115,17 +119,15 @@ class Controller(val mainActivity: MainActivity) {
             viewModel.removeAllCredentials()
         }
 
-        fun getFramedCredentials(frame: Credential): List<Credential> {
+        fun filterCredentials(frame: Credential): List<String> {
             //TODO: Implement framing
             return credentials.mapNotNull {
-                val credentialWithoutProof = it.value.deepCopy().apply { proof = null }
-                val transformedRdf =
-                    credentialWithoutProof.normalize().trim().replace(Regex("_:c14n[0-9]*"), "<urn:bnid:$0>")
-                val inputDocument =
-                    JsonDocument.of(JsonLd.fromRdf(RdfDocument.of(transformedRdf.byteInputStream())).get())
+                val credential = it.value.deepCopy().apply { proof = null }
+                val inputDocument = credential.toJsonDocument()
                 val frameDocument = frame.toJsonDocument()
                 val jsonObject = JsonLd.frame(inputDocument, frameDocument).options(defaultJsonLdOptions).get()
-                Json.decodeFromString<Credential>(jsonObject.toString())
+                val framedCredential = Json.decodeFromString<Credential>(jsonObject.toString())
+                if (framedCredential.credentialSubject != null) it.key else null
             }
         }
 
@@ -139,31 +141,24 @@ class Controller(val mainActivity: MainActivity) {
     }
 
     fun start() {
-        job = mainActivity.lifecycleScope.launch {
-            PresentationExchangeHolderProtocol.listen(WsConnection, port = Settings.wsServerPort) {
-                while (true) {
-                    val message = it.receive()
-                    Log.d(TAG, "received: ${message.type}")
-                    if (!handleIncomingMessage(it, message)) break
-                }
+        PresentationExchangeHolderProtocol.listen(WsConnection, port = Settings.wsServerPort) {
+            while (true) {
+                debugState.presentationExchange = it.protocolState
+                val message = it.receive()
+                Log.d(TAG, "received: ${message.type}")
+                if (!handleIncomingMessage(it, message)) break
             }
+            debugState.presentationExchange = it.protocolState.copy()
         }
-    }
-
-    fun restart() {
-        runBlocking {
-            kotlin.runCatching {
-                job.cancelAndJoin()
-            }
-        }
-        start()
+        // endpoint for debugging and demo purposes
+        embeddedServer(CIO, port = Settings.wsServerPort + 1, host = "0.0.0.0", module = Application::module).start()
     }
 
     fun acceptInvitation(invitation: Invitation) {
         mainActivity.lifecycleScope.launch(CoroutineName("")) {
             invitationCache.addConnection(invitation)
             invitation.service[0].serviceEndpoint?.let { serviceEndpoint ->
-                Log.d(TAG, "invitation accepted from ${serviceEndpoint.host}")
+                Log.d(TAG, "invitation accepted from ${serviceEndpoint.host}:${serviceEndpoint.port}")
                 CredentialExchangeHolderProtocol.connect(
                     WsConnection,
                     host = serviceEndpoint.host,
@@ -171,10 +166,12 @@ class Controller(val mainActivity: MainActivity) {
                 ) {
                     it.sendInvitation(invitation)
                     while (true) {
+                        debugState.issueCredential = it.protocolState
                         val message = it.receive()
                         Log.d(TAG, "received: ${message.type}")
                         if (!handleIncomingMessage(it, message)) break
                     }
+                    debugState.issueCredential = it.protocolState.copy()
                 }
             }
         }
@@ -196,7 +193,7 @@ class Controller(val mainActivity: MainActivity) {
         credentialCache.removeCredential(id)
     }
 
-    fun getCredential(id: String): Map.Entry<String, Credential> {
+    fun getCredential(id: String): Map.Entry<String, Credential>? {
         return credentialCache.getCredential(id)
     }
 
@@ -282,7 +279,11 @@ class Controller(val mainActivity: MainActivity) {
                 inputDescriptor = Descriptor(
                     UUID.randomUUID().toString(), Credential(
                         atContext = Credential.DEFAULT_JSONLD_CONTEXTS + URI("https://w3id.org/vaccination/v1"),
-                        type = Credential.DEFAULT_JSONLD_TYPES + "VaccinationCertificate"
+                        type = when {
+                            message.label.contains("VaccinationCertificate") -> Credential.DEFAULT_JSONLD_TYPES + "VaccinationCertificate"
+                            message.label.contains("InsuranceCertificate") -> Credential.DEFAULT_JSONLD_TYPES + "InsuranceCertificate"
+                            else -> Credential.DEFAULT_JSONLD_TYPES
+                        }
                     )
                 )
             )
@@ -294,10 +295,12 @@ class Controller(val mainActivity: MainActivity) {
         protocolInstance: PresentationExchangeHolderProtocol,
         message: PresentationRequest
     ): Boolean {
-        val credentials = credentialCache.getFramedCredentials(message.inputDescriptor.frame)
+        val credentials = credentialCache.filterCredentials(message.inputDescriptor.frame)
+        if (credentials.isEmpty()) return false
         // pick credential - we pick the first credential without user interaction
-        val derivedCredential = credentialCache.getCredential(credentials.get(0).id!!).value.derive(message.inputDescriptor.frame)
-
+        val derivedCredential =
+            credentialCache.getCredential(credentials.get(0))?.value?.derive(message.inputDescriptor.frame)
+        derivedCredential ?: return false
         val ldProofHolder = LdProof(
             type = listOf(ProofType.BbsBlsSignature2020.name),
             created = Date(),
@@ -335,3 +338,22 @@ class Controller(val mainActivity: MainActivity) {
     }
 
 }
+
+// live debugging
+
+@Serializable
+data class DebugState(
+    var issueCredential: CredentialExchangeHolderProtocol.ProtocolState? = null,
+    var presentationExchange: PresentationExchangeHolderProtocol.ProtocolState? = null
+)
+
+val debugState = DebugState()
+
+fun Application.module() {
+    routing {
+        get("/") {
+            call.respondText(json.encodeToString(debugState), ContentType.parse("application/json"), HttpStatusCode.OK)
+        }
+    }
+}
+
