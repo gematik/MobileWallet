@@ -159,19 +159,37 @@ class Controller(val mainActivity: MainActivity) {
             invitationCache.addConnection(invitation)
             invitation.service[0].serviceEndpoint?.let { serviceEndpoint ->
                 Log.d(TAG, "invitation accepted from ${serviceEndpoint.host}:${serviceEndpoint.port}")
-                CredentialExchangeHolderProtocol.connect(
-                    WsConnection,
-                    host = serviceEndpoint.host,
-                    serviceEndpoint.port
-                ) {
-                    it.sendInvitation(invitation)
-                    while (true) {
-                        debugState.issueCredential = it.protocolState
-                        val message = it.receive()
-                        Log.d(TAG, "received: ${message.type}")
-                        if (!handleIncomingMessage(it, message)) break
+                when {
+                    invitation.label == "CheckIn" -> PresentationExchangeHolderProtocol.connect(
+                        WsConnection,
+                        host = serviceEndpoint.host,
+                        serviceEndpoint.port
+                    ) {
+                        it.sendInvitation(invitation)
+                        while (true) {
+                            debugState.presentationExchange = it.protocolState
+                            val message = it.receive()
+                            Log.d(TAG, "received: ${message.type}")
+                            if (!handleIncomingMessage(it, message)) break
+                        }
+                        debugState.presentationExchange = it.protocolState.copy()
                     }
-                    debugState.issueCredential = it.protocolState.copy()
+
+                    else -> CredentialExchangeHolderProtocol.connect(
+                        WsConnection,
+                        host = serviceEndpoint.host,
+                        serviceEndpoint.port
+                    ) {
+                        it.sendInvitation(invitation)
+                        while (true) {
+                            debugState.issueCredential = it.protocolState
+                            val message = it.receive()
+                            Log.d(TAG, "received: ${message.type}")
+                            if (!handleIncomingMessage(it, message)) break
+                        }
+                        debugState.issueCredential = it.protocolState.copy()
+                    }
+
                 }
             }
         }
