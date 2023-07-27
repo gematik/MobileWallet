@@ -53,7 +53,7 @@ class CredentialListAdapter(private val activity: MainActivity) :
                 getItem(adapterPosition).let { entry ->
                     activity.supportFragmentManager.beginTransaction()
                         .replace(R.id.container, CredentialDetailFragment.newInstance(entry.first))
-                        .addToBackStack("connection_confirm").commit()
+                        .addToBackStack("invitation_confirm").commit()
                 }
             }
             binding.root.setOnLongClickListener {

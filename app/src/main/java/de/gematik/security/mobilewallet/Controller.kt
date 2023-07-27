@@ -54,29 +54,29 @@ class Controller(val mainActivity: MainActivity) {
         init {
             val preferences =
                 androidx.preference.PreferenceManager.getDefaultSharedPreferences(mainActivity.applicationContext)
-            val connectionRecords = preferences.getStringSet("connectionsRecords", null)
-            connectionRecords?.forEach {
-                addConnection(Json.decodeFromString<Invitation>(it))
+            val invitations = preferences.getStringSet("invitations", null)
+            invitations?.forEach {
+                addInvitation(Json.decodeFromString<Invitation>(it))
             }
         }
 
         val viewModel by mainActivity.viewModels<MainViewModel>()
 
-        fun addConnection(invitation: Invitation) {
+        fun addInvitation(invitation: Invitation) {
             invitations.put(invitation.id, invitation)
-            viewModel.addConnection(invitation)
+            viewModel.addInvitation(invitation)
         }
 
-        fun getConnection(id: String): Invitation? {
+        fun getInvitation(id: String): Invitation? {
             return invitations.get(id)
         }
 
-        fun removeConnection(id: String) {
+        fun removeInvitation(id: String) {
             invitations.remove(id)
             viewModel.removeInvitations(id)
         }
 
-        fun removeAllConnections() {
+        fun removeAllInvitations() {
             invitations.clear()
             viewModel.removeAllInvitations()
         }
@@ -91,8 +91,8 @@ class Controller(val mainActivity: MainActivity) {
         init {
             val preferences =
                 androidx.preference.PreferenceManager.getDefaultSharedPreferences(mainActivity.applicationContext)
-            val credentialRecords = preferences.getStringSet("credentialRecords", null)
-            credentialRecords?.forEach {
+            val credentials = preferences.getStringSet("credentials", null)
+            credentials?.forEach {
                 addCredential(Json.decodeFromString<Credential>(it))
             }
         }
@@ -156,7 +156,7 @@ class Controller(val mainActivity: MainActivity) {
 
     fun acceptInvitation(invitation: Invitation) {
         mainActivity.lifecycleScope.launch(CoroutineName("")) {
-            invitationCache.addConnection(invitation)
+            invitationCache.addInvitation(invitation)
             invitation.service[0].serviceEndpoint?.let { serviceEndpoint ->
                 Log.d(TAG, "invitation accepted from ${serviceEndpoint.host}:${serviceEndpoint.port}")
                 when(invitation.goalCode) {
@@ -195,12 +195,12 @@ class Controller(val mainActivity: MainActivity) {
         }
     }
 
-    fun removeAllConnections() {
-        invitationCache.removeAllConnections()
+    fun removeAllInvitations() {
+        invitationCache.removeAllInvitations()
     }
 
-    fun removeConnection(id: String) {
-        invitationCache.removeConnection(id)
+    fun removeInvitation(id: String) {
+        invitationCache.removeInvitation(id)
     }
 
     fun removeAllCredentials() {

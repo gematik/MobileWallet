@@ -8,17 +8,17 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import de.gematik.security.mobilewallet.MainActivity
 import de.gematik.security.mobilewallet.R
-import de.gematik.security.mobilewallet.databinding.ConnectionListFragmentBinding
+import de.gematik.security.mobilewallet.databinding.InvitationListFragmentBinding
 
 class InvitationListFragment : Fragment() {
 
-    private lateinit var binding: ConnectionListFragmentBinding
+    private lateinit var binding: InvitationListFragmentBinding
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        binding = ConnectionListFragmentBinding.inflate(inflater, container, false)
+        binding = InvitationListFragmentBinding.inflate(inflater, container, false)
         val viewModel by activityViewModels<MainViewModel>()
         val adapter = InvitationListAdapter(activity as MainActivity)
         binding.invitationList.adapter = adapter
@@ -35,13 +35,13 @@ class InvitationListFragment : Fragment() {
         menuHost.addMenuProvider(object : MenuProvider{
             override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
                 // Add menu items here
-                menuInflater.inflate(R.menu.connection_list_fragment, menu)
+                menuInflater.inflate(R.menu.invitation_list_fragment, menu)
             }
 
             override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
                 return when (menuItem.itemId) {
-                    R.id.delete_all_connections -> {
-                        (activity as MainActivity).controller.removeAllConnections()
+                    R.id.delete_all_invitations -> {
+                        (activity as MainActivity).controller.removeAllInvitations()
                         true
                     }
                     else -> false
@@ -53,7 +53,7 @@ class InvitationListFragment : Fragment() {
     override fun onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo?) {
         super.onCreateContextMenu(menu, v, menuInfo)
         val inflater: MenuInflater = requireActivity().menuInflater
-        inflater.inflate(R.menu.connect_list_context_menu, menu)
+        inflater.inflate(R.menu.invitation_list_context_menu, menu)
     }
 
     override fun onContextItemSelected(item: MenuItem): Boolean {
@@ -67,13 +67,13 @@ class InvitationListFragment : Fragment() {
                 true
             }
 
-            R.id.delete_connection -> {
+            R.id.delete_invitation -> {
                 val viewModel by activityViewModels<MainViewModel>()
                 val pos = (binding.invitationList.adapter as InvitationListAdapter)
                     .clickedPosition
-                val connectionId = viewModel.invitations.value?.get(pos)?.id
-                connectionId?.let {
-                    (activity as MainActivity).controller.removeConnection(it)
+                val invitationId = viewModel.invitations.value?.get(pos)?.id
+                invitationId?.let {
+                    (activity as MainActivity).controller.removeInvitation(it)
                 }
                 true
             }

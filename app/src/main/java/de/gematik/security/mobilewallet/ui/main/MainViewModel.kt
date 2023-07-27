@@ -15,7 +15,7 @@ class MainViewModel : ViewModel() {
         credentials.value = arrayListOf()
     }
 
-    fun addConnection(invitation: Invitation) {
+    fun addInvitation(invitation: Invitation) {
         invitations.postValue(invitations.value?.apply {
             if (count { it.id == invitation.id } == 0) add(
                 invitation

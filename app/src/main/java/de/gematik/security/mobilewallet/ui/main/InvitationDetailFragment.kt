@@ -8,7 +8,7 @@ import androidx.fragment.app.activityViewModels
 import de.gematik.security.credentialExchangeLib.json
 import de.gematik.security.mobilewallet.MainActivity
 import de.gematik.security.mobilewallet.R
-import de.gematik.security.mobilewallet.databinding.ConnectionDetailFragmentBinding
+import de.gematik.security.mobilewallet.databinding.InvitationDetailFragmentBinding
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 
@@ -16,7 +16,7 @@ private const val ARG_INVITATION_ID = "InvitationId"
 
 class InvitationDetailFragment : Fragment() {
 
-    private lateinit var binding: ConnectionDetailFragmentBinding
+    private lateinit var binding: InvitationDetailFragmentBinding
 
     private var invitationId: String? = null
 
@@ -32,7 +32,7 @@ class InvitationDetailFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        binding = ConnectionDetailFragmentBinding.inflate(inflater, container, false)
+        binding = InvitationDetailFragmentBinding.inflate(inflater, container, false)
         val viewModel by activityViewModels<MainViewModel>()
         val invitation = viewModel.invitations.value?.find { it.id == invitationId }
         binding.textView.apply {
@@ -44,15 +44,15 @@ class InvitationDetailFragment : Fragment() {
     }
 
     override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
-        inflater.inflate(R.menu.connection_detail_fragment, menu)
+        inflater.inflate(R.menu.invitation_detail_fragment, menu)
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
-            R.id.delete_connection ->
+            R.id.delete_invitation ->
                 runBlocking {
                     (activity as MainActivity).run {
-                        invitationId?.let { controller.removeConnection(it) }
+                        invitationId?.let { controller.removeInvitation(it) }
                         supportFragmentManager.popBackStack()
                     }
                 }

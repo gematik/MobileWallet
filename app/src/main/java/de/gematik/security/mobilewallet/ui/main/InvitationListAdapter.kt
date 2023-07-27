@@ -20,7 +20,7 @@ class InvitationListAdapter(private val activity: MainActivity) :
     var clickedPosition: Int = -1
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
-        // Create a new view, which defines the UI of connection card
+        // Create a new view, which defines the UI of an invitation card
         return InvitationViewHolder(
             InvitationCardBinding.inflate(
                 LayoutInflater.from(parent.context),
@@ -32,8 +32,8 @@ class InvitationListAdapter(private val activity: MainActivity) :
 
     override fun onBindViewHolder(viewHolder: RecyclerView.ViewHolder, position: Int) {
         // Update the view hold by the given viewHolder
-        val connection = getItem(position)
-        (viewHolder as InvitationViewHolder).bind(connection)
+        val invitation = getItem(position)
+        (viewHolder as InvitationViewHolder).bind(invitation)
     }
 
     //view holder for card view
@@ -44,7 +44,7 @@ class InvitationListAdapter(private val activity: MainActivity) :
                 if (adapterPosition < 0) return@setOnClickListener
                 getItem(adapterPosition).id.let { id ->
                     activity.supportFragmentManager.beginTransaction()
-                        .replace(R.id.container, InvitationDetailFragment.newInstance(id)).addToBackStack( "connection_confirm" ).commit()
+                        .replace(R.id.container, InvitationDetailFragment.newInstance(id)).addToBackStack( "invitation_confirm" ).commit()
                 }
             }
             binding.root.setOnLongClickListener {

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:id="@+id/delete_all_connections"
+    <item android:id="@+id/delete_all_invitations"
           android:icon="@android:drawable/ic_menu_delete"
-          android:title="@string/delete_all_connections" app:showAsAction="never"/>
+          android:title="@string/delete_all_invitations" app:showAsAction="never"/>
 </menu>

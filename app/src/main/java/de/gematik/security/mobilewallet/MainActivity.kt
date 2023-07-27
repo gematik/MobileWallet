@@ -37,9 +37,9 @@ class MainActivity : AppCompatActivity() {
         // scan qr code
         qrCodeScannerLauncher = registerForActivityResult(ScanContract())
         {
-            if (it.contents != null) {
-                val oob = URI.create(it.contents).query.substringAfter("oob=", "").substringBefore("&")
-                if (oob.isNotEmpty()) {
+            it.contents?.let {contents ->
+                val oob = URI.create(contents).query?.substringAfter("oob=", "")?.substringBefore("&")
+                if (oob?.isNotEmpty()==true) {
                     val invitation = json.decodeFromString<Invitation>(String(Base64.getDecoder().decode(oob)))
                     controller.acceptInvitation(invitation)
                 }

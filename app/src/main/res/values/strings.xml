@@ -1,8 +1,8 @@
 <resources>
     <string name="app_name">My wallet 2</string>
-    <string name="new_connection">New Practice Connection</string>
-    <string name="delete_connection">Delete Connection</string>
-    <string name="delete_all_connections">Delete All Connections</string>
+    <string name="new_invitation">New Invitation</string>
+    <string name="delete_invitation">Delete Invitation</string>
+    <string name="delete_all_invitations">Delete All Invitations</string>
     <string name="new_credential">New Vaccination Credential</string>
     <string name="delete_credential">Delete Credential</string>
     <string name="delete_all_credentials">Delete All Credentials</string>
@@ -12,7 +12,7 @@
     <string name="about">About</string>
     <string name="invitation">Invitation</string>
     <string name="disconnected">Disconnected</string>
-    <string name="connection_card">Invitation</string>
+    <string name="invitation_card">Invitation</string>
     <string name="credential_card">Credential</string>
     <string name="credential_confirmation_title">Credential Offer</string>
     <string name="credential_confirmation_prompt">Do you want to request:</string>
