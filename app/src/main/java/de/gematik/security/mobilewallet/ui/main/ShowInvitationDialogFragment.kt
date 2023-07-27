@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.DialogFragment
 import de.gematik.security.credentialExchangeLib.protocols.Credential
+import de.gematik.security.credentialExchangeLib.protocols.GoalCode
 import de.gematik.security.credentialExchangeLib.protocols.Invitation
 import de.gematik.security.credentialExchangeLib.protocols.Service
 import de.gematik.security.mobilewallet.MainActivity
@@ -40,10 +41,12 @@ class ShowInvitationDialogFragment : DialogFragment() {
         savedInstanceState: Bundle?
     ): View {
         val type = credential?.type?.first { it != "VerifiableCredential" }
-        val label = if(type!=null) "Offer $type" else "Mobile Wallet"
+        val label = "Mobile Wallet 2"
+        val goal = if(type!=null) "Present $type" else "Present credentials"
+        val goalCode = GoalCode.OFFER_PRESENTATION
         binding = ShowInvitationDialogFragmentBinding.inflate(inflater, container, false)
         binding.credential.text = label
-        val invitation = createInvitation(UUID.randomUUID(), label)
+        val invitation = createInvitation(UUID.randomUUID(), label, goal, goalCode)
         binding.qrcode.setImageBitmap(invitation.qrCode)
         binding.Decline.setOnClickListener {
             dismiss()
@@ -65,13 +68,15 @@ class ShowInvitationDialogFragment : DialogFragment() {
             }
     }
 
-    private fun createInvitation(invitationId: UUID, label: String): Invitation {
+    private fun createInvitation(invitationId: UUID, label: String, goal: String, goalCode: GoalCode): Invitation {
         val networkInterface =
             NetworkInterface.getNetworkInterfaces().toList().first { it.name.lowercase().startsWith("wlan") }
         val address = networkInterface.inetAddresses.toList().first { it is Inet4Address }
         return Invitation(
             invitationId.toString(),
             label = label,
+            goal = goal,
+            goalCode = goalCode,
             service = listOf(
                 Service(serviceEndpoint = URI("ws", null, address.hostAddress, Settings.wsServerPort, "/ws", null, null))
             )

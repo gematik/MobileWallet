@@ -159,8 +159,8 @@ class Controller(val mainActivity: MainActivity) {
             invitationCache.addConnection(invitation)
             invitation.service[0].serviceEndpoint?.let { serviceEndpoint ->
                 Log.d(TAG, "invitation accepted from ${serviceEndpoint.host}:${serviceEndpoint.port}")
-                when {
-                    invitation.label == "CheckIn" -> PresentationExchangeHolderProtocol.connect(
+                when(invitation.goalCode) {
+                    GoalCode.REQUEST_PRESENTATION -> PresentationExchangeHolderProtocol.connect(
                         WsConnection,
                         host = serviceEndpoint.host,
                         serviceEndpoint.port
@@ -298,8 +298,8 @@ class Controller(val mainActivity: MainActivity) {
                     UUID.randomUUID().toString(), Credential(
                         atContext = Credential.DEFAULT_JSONLD_CONTEXTS + URI("https://w3id.org/vaccination/v1"),
                         type = when {
-                            message.label.contains("VaccinationCertificate") -> Credential.DEFAULT_JSONLD_TYPES + "VaccinationCertificate"
-                            message.label.contains("InsuranceCertificate") -> Credential.DEFAULT_JSONLD_TYPES + "InsuranceCertificate"
+                            message.goal.contains("VaccinationCertificate") -> Credential.DEFAULT_JSONLD_TYPES + "VaccinationCertificate"
+                            message.goal.contains("InsuranceCertificate") -> Credential.DEFAULT_JSONLD_TYPES + "InsuranceCertificate"
                             else -> Credential.DEFAULT_JSONLD_TYPES
                         }
                     )
