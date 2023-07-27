@@ -30,7 +30,7 @@ class MainPagerFragment : Fragment() {
         TabLayoutMediator(tabLayout, viewPager) { tab, position ->
             when (position){
                 INVITATIONS_PAGE_ID -> {
-                    tab.setIcon(R.drawable.connection_tab_selector)
+                    tab.setIcon(R.drawable.invitation_tab_selector)
                     tab.text = "Invitations"
                 }
                 CREDENTIALS_PAGE_ID ->{

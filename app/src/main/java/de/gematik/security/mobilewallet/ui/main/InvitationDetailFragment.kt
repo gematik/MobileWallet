@@ -14,7 +14,7 @@ import kotlinx.serialization.encodeToString
 
 private const val ARG_INVITATION_ID = "InvitationId"
 
-class ConnectionDetailFragment : Fragment() {
+class InvitationDetailFragment : Fragment() {
 
     private lateinit var binding: ConnectionDetailFragmentBinding
 
@@ -63,7 +63,7 @@ class ConnectionDetailFragment : Fragment() {
     companion object {
         @JvmStatic
         fun newInstance(id: String) =
-            ConnectionDetailFragment().apply {
+            InvitationDetailFragment().apply {
                 arguments = Bundle().apply {
                     putString(ARG_INVITATION_ID, id)
                 }

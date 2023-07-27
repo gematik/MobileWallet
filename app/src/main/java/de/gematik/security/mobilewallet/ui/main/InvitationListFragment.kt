@@ -10,7 +10,7 @@ import de.gematik.security.mobilewallet.MainActivity
 import de.gematik.security.mobilewallet.R
 import de.gematik.security.mobilewallet.databinding.ConnectionListFragmentBinding
 
-class ConnectionListFragment : Fragment() {
+class InvitationListFragment : Fragment() {
 
     private lateinit var binding: ConnectionListFragmentBinding
 
@@ -20,8 +20,8 @@ class ConnectionListFragment : Fragment() {
     ): View {
         binding = ConnectionListFragmentBinding.inflate(inflater, container, false)
         val viewModel by activityViewModels<MainViewModel>()
-        val adapter = ConnectionListAdapter(activity as MainActivity)
-        binding.connectionList.adapter = adapter
+        val adapter = InvitationListAdapter(activity as MainActivity)
+        binding.invitationList.adapter = adapter
         viewModel.invitations.observe(viewLifecycleOwner) {
             adapter.submitList(it.toMutableList())
         }
@@ -60,7 +60,7 @@ class ConnectionListFragment : Fragment() {
         return when (item.itemId) {
             R.id.request_credential -> {
                 val viewModel by activityViewModels<MainViewModel>()
-                val pos = (binding.connectionList.adapter as ConnectionListAdapter).clickedPosition
+                val pos = (binding.invitationList.adapter as InvitationListAdapter).clickedPosition
                 viewModel.invitations.value?.get(pos)?.let {
                     (activity as MainActivity).controller.acceptInvitation(it)
                 }
@@ -69,7 +69,7 @@ class ConnectionListFragment : Fragment() {
 
             R.id.delete_connection -> {
                 val viewModel by activityViewModels<MainViewModel>()
-                val pos = (binding.connectionList.adapter as ConnectionListAdapter)
+                val pos = (binding.invitationList.adapter as InvitationListAdapter)
                     .clickedPosition
                 val connectionId = viewModel.invitations.value?.get(pos)?.id
                 connectionId?.let {

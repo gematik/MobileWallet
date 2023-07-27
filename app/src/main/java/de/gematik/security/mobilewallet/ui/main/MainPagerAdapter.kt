@@ -13,7 +13,7 @@ const val CREDENTIALS_PAGE_ID = 1
 class MainPagerAdapter(fragment: Fragment) : FragmentStateAdapter(fragment) {
 
     private val fragmentCreators: Map<Int, () -> Fragment> = mapOf(
-        INVITATIONS_PAGE_ID to { ConnectionListFragment() },
+        INVITATIONS_PAGE_ID to { InvitationListFragment() },
         CREDENTIALS_PAGE_ID to { CredentialListFragment() }
     )
 
