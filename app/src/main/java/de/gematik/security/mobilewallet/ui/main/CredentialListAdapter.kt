@@ -69,7 +69,7 @@ class CredentialListAdapter(private val activity: MainActivity) :
                 credentialId.text = "${entry.first.substring(0..7)}..${entry.first.substring(24)}"
                 when {
                     entry.second.type.contains("PermanentResidentCard") -> {
-                        title.text = "Resident Card"
+                        label.text = "Resident Card"
                         entry.second.credentialSubject?.let {
                             content.text = String.format(
                                 "%s %s\n%s",
@@ -82,7 +82,7 @@ class CredentialListAdapter(private val activity: MainActivity) :
                     }
 
                     entry.second.type.contains("InsuranceCertificate") -> {
-                        title.text = "Insurance Certificate"
+                        label.text = "Insurance Certificate"
                         json.decodeFromJsonElement<Insurance>(entry.second.credentialSubject!!).let {
                             content.text = String.format(
                                 "%s - %s - %s\n%s",
@@ -96,7 +96,7 @@ class CredentialListAdapter(private val activity: MainActivity) :
                     }
 
                     entry.second.type.contains("VaccinationCertificate") -> {
-                        title.text = "Vaccination Certificate"
+                        label.text = "Vaccination Certificate"
                         json.decodeFromJsonElement<VaccinationEvent>(entry.second.credentialSubject!!).let {
                             content.text = String.format(
                                 "%s - %s - %s\n%s",
@@ -110,7 +110,7 @@ class CredentialListAdapter(private val activity: MainActivity) :
                     }
 
                     entry.second.type.contains("BaseIdDemo") -> {
-                        title.text = "BaseId Demo"
+                        label.text = "BaseId Demo"
                         entry.second.credentialSubject?.let {
                             content.text = String.format(
                                 "%s %s\n%s",
@@ -123,7 +123,7 @@ class CredentialListAdapter(private val activity: MainActivity) :
                     }
 
                     entry.second.type.contains("NextcloudCredential") -> {
-                        title.text = "Nextcloud Demo"
+                        label.text = "Nextcloud Demo"
                         entry.second.credentialSubject?.let {
                             content.text = String.format(
                                 "%s %s\n%s",
@@ -136,7 +136,7 @@ class CredentialListAdapter(private val activity: MainActivity) :
                     }
 
                     else -> {
-                        title.text = "Certificate"
+                        label.text = "Certificate"
                         content.text = "Unknown credential type"
                         imageView.setImageDrawable(activity.getDrawable(R.drawable.ic_nccard))
                     }

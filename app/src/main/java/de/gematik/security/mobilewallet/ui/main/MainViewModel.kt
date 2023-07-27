@@ -7,32 +7,32 @@ import de.gematik.security.credentialExchangeLib.protocols.Invitation
 import java.util.*
 
 class MainViewModel : ViewModel() {
-    val connections = MutableLiveData<ArrayList<Invitation>>()
+    val invitations = MutableLiveData<ArrayList<Invitation>>()
     val credentials = MutableLiveData<ArrayList<Pair<String,Credential>>>()
 
     init {
-        connections.value = arrayListOf()
+        invitations.value = arrayListOf()
         credentials.value = arrayListOf()
     }
 
     fun addConnection(invitation: Invitation) {
-        connections.postValue(connections.value?.apply {
+        invitations.postValue(invitations.value?.apply {
             if (count { it.id == invitation.id } == 0) add(
                 invitation
             )
         })
     }
 
-    fun removeConnection(position: Int) {
-        connections.postValue(connections.value?.apply { removeAt(position) })
+    fun removeInvitations(position: Int) {
+        invitations.postValue(invitations.value?.apply { removeAt(position) })
     }
 
-    fun removeConnection(id: String) {
-        connections.postValue(connections.value?.apply { removeIf { it.id == id } })
+    fun removeInvitations(id: String) {
+        invitations.postValue(invitations.value?.apply { removeIf { it.id == id } })
     }
 
-    fun removeAllConnections() {
-        connections.value = arrayListOf()
+    fun removeAllInvitations() {
+        invitations.value = arrayListOf()
     }
 
     fun addCredential(credential: Pair<String, Credential>) {

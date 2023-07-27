@@ -22,7 +22,7 @@ class ConnectionListFragment : Fragment() {
         val viewModel by activityViewModels<MainViewModel>()
         val adapter = ConnectionListAdapter(activity as MainActivity)
         binding.connectionList.adapter = adapter
-        viewModel.connections.observe(viewLifecycleOwner) {
+        viewModel.invitations.observe(viewLifecycleOwner) {
             adapter.submitList(it.toMutableList())
         }
         registerForContextMenu(binding.root)
@@ -61,7 +61,7 @@ class ConnectionListFragment : Fragment() {
             R.id.request_credential -> {
                 val viewModel by activityViewModels<MainViewModel>()
                 val pos = (binding.connectionList.adapter as ConnectionListAdapter).clickedPosition
-                viewModel.connections.value?.get(pos)?.let {
+                viewModel.invitations.value?.get(pos)?.let {
                     (activity as MainActivity).controller.acceptInvitation(it)
                 }
                 true
@@ -71,7 +71,7 @@ class ConnectionListFragment : Fragment() {
                 val viewModel by activityViewModels<MainViewModel>()
                 val pos = (binding.connectionList.adapter as ConnectionListAdapter)
                     .clickedPosition
-                val connectionId = viewModel.connections.value?.get(pos)?.id
+                val connectionId = viewModel.invitations.value?.get(pos)?.id
                 connectionId?.let {
                     (activity as MainActivity).controller.removeConnection(it)
                 }

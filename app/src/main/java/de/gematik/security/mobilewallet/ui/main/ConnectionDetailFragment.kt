@@ -34,7 +34,7 @@ class ConnectionDetailFragment : Fragment() {
     ): View {
         binding = ConnectionDetailFragmentBinding.inflate(inflater, container, false)
         val viewModel by activityViewModels<MainViewModel>()
-        val invitation = viewModel.connections.value?.find { it.id == invitationId }
+        val invitation = viewModel.invitations.value?.find { it.id == invitationId }
         binding.textView.apply {
             text = json.encodeToString(invitation)
             setHorizontallyScrolling(true)

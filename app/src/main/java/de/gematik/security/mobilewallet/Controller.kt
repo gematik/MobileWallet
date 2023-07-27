@@ -73,12 +73,12 @@ class Controller(val mainActivity: MainActivity) {
 
         fun removeConnection(id: String) {
             invitations.remove(id)
-            viewModel.removeConnection(id)
+            viewModel.removeInvitations(id)
         }
 
         fun removeAllConnections() {
             invitations.clear()
-            viewModel.removeAllConnections()
+            viewModel.removeAllInvitations()
         }
     }
 

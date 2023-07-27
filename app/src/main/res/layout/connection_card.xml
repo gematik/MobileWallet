@@ -15,25 +15,25 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:textAppearance="@style/TextAppearance.AppCompat.Large"
-                    android:id="@+id/title"
+                    android:id="@+id/label"
                     app:layout_constraintTop_toTopOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintEnd_toStartOf="@id/imageView"
-                    app:layout_constraintBottom_toTopOf="@+id/connectionId"/>
+                    app:layout_constraintBottom_toTopOf="@+id/invitationId"/>
             <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:id="@+id/connectionId"
-                    app:layout_constraintTop_toBottomOf="@id/title"
+                    android:id="@+id/invitationId"
+                    app:layout_constraintTop_toBottomOf="@id/label"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintEnd_toStartOf="@id/imageView"
-                    app:layout_constraintBottom_toTopOf="@+id/label"/>
+                    app:layout_constraintBottom_toTopOf="@+id/goal"/>
             <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:id="@+id/label"
+                    android:id="@+id/goal"
                     android:lines="2"
-                    app:layout_constraintTop_toBottomOf="@id/connectionId"
+                    app:layout_constraintTop_toBottomOf="@id/invitationId"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintEnd_toStartOf="@id/imageView"
                     app:layout_constraintBottom_toTopOf="parent"/>
@@ -43,7 +43,7 @@
                     android:adjustViewBounds="true"
                     app:srcCompat="@drawable/ic_connection"
                     android:id="@+id/imageView"
-                    app:layout_constraintStart_toEndOf="@id/title"
+                    app:layout_constraintStart_toEndOf="@id/label"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintTop_toTopOf="parent"
                     app:layout_constraintBottom_toBottomOf="parent"

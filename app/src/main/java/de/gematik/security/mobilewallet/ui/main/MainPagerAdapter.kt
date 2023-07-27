@@ -8,12 +8,12 @@ import androidx.viewpager2.adapter.FragmentStateAdapter
  * gematik.de
  */
 
-const val CONNECTIONS_PAGE_ID = 0
+const val INVITATIONS_PAGE_ID = 0
 const val CREDENTIALS_PAGE_ID = 1
 class MainPagerAdapter(fragment: Fragment) : FragmentStateAdapter(fragment) {
 
     private val fragmentCreators: Map<Int, () -> Fragment> = mapOf(
-        CONNECTIONS_PAGE_ID to { ConnectionListFragment() },
+        INVITATIONS_PAGE_ID to { ConnectionListFragment() },
         CREDENTIALS_PAGE_ID to { CredentialListFragment() }
     )
 

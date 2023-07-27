@@ -12,7 +12,7 @@
     <string name="about">About</string>
     <string name="invitation">Invitation</string>
     <string name="disconnected">Disconnected</string>
-    <string name="connection_card">Connection</string>
+    <string name="connection_card">Invitation</string>
     <string name="credential_card">Credential</string>
     <string name="credential_confirmation_title">Credential Offer</string>
     <string name="credential_confirmation_prompt">Do you want to request:</string>
