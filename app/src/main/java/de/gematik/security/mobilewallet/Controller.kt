@@ -6,26 +6,27 @@ import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.widget.ViewPager2
 import com.apicatalog.jsonld.JsonLd
 import de.gematik.security.credentialExchangeLib.connection.WsConnection
-import de.gematik.security.credentialExchangeLib.crypto.BbsCryptoCredentials
 import de.gematik.security.credentialExchangeLib.crypto.BbsPlusSigner
-import de.gematik.security.credentialExchangeLib.crypto.KeyPair
 import de.gematik.security.credentialExchangeLib.crypto.ProofType
 import de.gematik.security.credentialExchangeLib.defaultJsonLdOptions
 import de.gematik.security.credentialExchangeLib.extensions.deepCopy
-import de.gematik.security.credentialExchangeLib.extensions.hexToByteArray
 import de.gematik.security.credentialExchangeLib.extensions.toJsonDocument
 import de.gematik.security.credentialExchangeLib.json
 import de.gematik.security.credentialExchangeLib.protocols.*
 import de.gematik.security.mobilewallet.ui.main.CREDENTIALS_PAGE_ID
 import de.gematik.security.mobilewallet.ui.main.CredentialOfferDialogFragment
 import de.gematik.security.mobilewallet.ui.main.MainViewModel
+import de.gematik.security.mobilewallet.ui.main.PresentationSubmitDialogFragment
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.cio.*
 import io.ktor.server.engine.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -40,13 +41,6 @@ import java.util.*
 
 class Controller(val mainActivity: MainActivity) {
     val TAG = Controller::class.java.name
-
-    val credentialHolder = BbsCryptoCredentials(
-        KeyPair(
-            "4318a7863ecbf9b347f3bd892828c588c20e61e5fa7344b7268643adb5a2bd4e".hexToByteArray(),
-            "a21e0d512342b0b6ebf0d86ab3a2cef2a57bab0c0eeff0ffebad724107c9f33d69368531b41b1caa5728730f52aea54817b087f0d773cb1a753f1ede255468e88cea6665c6ce1591c88b079b0c4f77d0967d8211b1bc8687213e2af041ba73c4".hexToByteArray()
-        )
-    )
 
     private inner class InvitationCache() {
         private val invitations = HashMap<String, Invitation>()
@@ -142,9 +136,11 @@ class Controller(val mainActivity: MainActivity) {
 
     fun start() {
         PresentationExchangeHolderProtocol.listen(WsConnection, port = Settings.wsServerPort) {
-            while (true) {
+            while (it.protocolState.state != PresentationExchangeHolderProtocol.State.CLOSED) {
                 debugState.presentationExchange = it.protocolState
-                val message = it.receive()
+                val message = runCatching {
+                    it.receive()
+                }.onFailure { Log.d(TAG, "exception: ${it.message}") }.getOrNull() ?: break
                 Log.d(TAG, "received: ${message.type}")
                 if (!handleIncomingMessage(it, message)) break
             }
@@ -159,16 +155,18 @@ class Controller(val mainActivity: MainActivity) {
             invitationCache.addInvitation(invitation)
             invitation.service[0].serviceEndpoint?.let { serviceEndpoint ->
                 Log.d(TAG, "invitation accepted from ${serviceEndpoint.host}:${serviceEndpoint.port}")
-                when(invitation.goalCode) {
+                when (invitation.goalCode) {
                     GoalCode.REQUEST_PRESENTATION -> PresentationExchangeHolderProtocol.connect(
                         WsConnection,
                         host = serviceEndpoint.host,
                         serviceEndpoint.port
                     ) {
                         it.sendInvitation(invitation)
-                        while (true) {
+                        while (it.protocolState.state != PresentationExchangeHolderProtocol.State.CLOSED) {
                             debugState.presentationExchange = it.protocolState
-                            val message = it.receive()
+                            val message = runCatching {
+                                it.receive()
+                            }.onFailure { Log.d(TAG, "exception: ${it.message}") }.getOrNull() ?: break
                             Log.d(TAG, "received: ${message.type}")
                             if (!handleIncomingMessage(it, message)) break
                         }
@@ -181,15 +179,16 @@ class Controller(val mainActivity: MainActivity) {
                         serviceEndpoint.port
                     ) {
                         it.sendInvitation(invitation)
-                        while (true) {
+                        while (it.protocolState.state != CredentialExchangeHolderProtocol.State.CLOSED) {
                             debugState.issueCredential = it.protocolState
-                            val message = it.receive()
+                            val message = runCatching {
+                                it.receive()
+                            }.onFailure { Log.d(TAG, "exception: ${it.message}") }.getOrNull() ?: break
                             Log.d(TAG, "received: ${message.type}")
                             if (!handleIncomingMessage(it, message)) break
                         }
                         debugState.issueCredential = it.protocolState.copy()
                     }
-
                 }
             }
         }
@@ -236,10 +235,9 @@ class Controller(val mainActivity: MainActivity) {
     ): Boolean {
         withContext(Dispatchers.Main) {
             CredentialOfferDialogFragment.newInstance(
-                offer.outputDescriptor.frame.type.first { it != "VerifiableCredential" },
-                protocolInstance.id
-            )
-                .show(mainActivity.supportFragmentManager, "credential_offer")
+                protocolInstance.id,
+                offer.outputDescriptor.frame.type.first { it != "VerifiableCredential" }
+            ).show(mainActivity.supportFragmentManager, "credential_offer")
         }
         return true
     }
@@ -250,7 +248,7 @@ class Controller(val mainActivity: MainActivity) {
         val request = CredentialRequest(
             UUID.randomUUID().toString(),
             outputDescriptor = protocolInstance.protocolState.offer!!.outputDescriptor,
-            holderKey = credentialHolder.didKey.toString()
+            holderKey = Settings.credentialHolder.didKey.toString()
         )
         protocolInstance.requestCredential(request)
         Log.d(TAG, "sent: ${request.type}")
@@ -282,7 +280,6 @@ class Controller(val mainActivity: MainActivity) {
                 protocolInstance,
                 message as PresentationRequest
             )
-
             else -> true //ignore
         }
     }
@@ -313,48 +310,68 @@ class Controller(val mainActivity: MainActivity) {
         protocolInstance: PresentationExchangeHolderProtocol,
         message: PresentationRequest
     ): Boolean {
-        val credentials = credentialCache.filterCredentials(message.inputDescriptor.frame)
-        if (credentials.isEmpty()) return false
-        // pick credential - we pick the first credential without user interaction
-        val derivedCredential =
-            credentialCache.getCredential(credentials.get(0))?.value?.derive(message.inputDescriptor.frame)
-        derivedCredential ?: return false
-        val ldProofHolder = LdProof(
-            type = listOf(ProofType.BbsBlsSignature2020.name),
-            created = Date(),
-            creator = credentialHolder.didKey,
-            proofPurpose = ProofPurpose.AUTHENTICATION,
-            verificationMethod = credentialHolder.verificationMethod
-        )
-
-        protocolInstance.submitPresentation(
-            PresentationSubmit(
-                UUID.randomUUID().toString(),
-                presentation = Presentation(
-                    id = UUID.randomUUID().toString(),
-                    verifiableCredential = listOf(
-                        derivedCredential
-                    ),
-                    presentationSubmission = PresentationSubmission(
-                        definitionId = UUID.randomUUID(),
-                        descriptorMap = listOf(
-                            PresentationSubmission.DescriptorMapEntry(
-                                id = message.inputDescriptor.id,
-                                format = ClaimFormat.LDP_VC,
-                                path = "\$.verifiableCredential[0]"
-                            )
-                        )
-
-                    )
-
-                ).apply {
-                    sign(ldProofHolder, BbsPlusSigner(credentialHolder.keyPair))
-                }
-            )
-        )
-        return false
+        return if(protocolInstance.protocolState.invitation?.label != Settings.label){
+            withContext(Dispatchers.Main) {
+                PresentationSubmitDialogFragment.newInstance(
+                    protocolInstance.id,
+                    protocolInstance.protocolState.invitation?.goal ?: "unknown goal",
+                    protocolInstance.protocolState.invitation?.label ?: "unknown verifier"
+                ).show(mainActivity.supportFragmentManager, "presentation_sent")
+            }
+            true
+        }else{
+            handlePresentationRequestAccepted(protocolInstance)
+            false
+        }
     }
 
+    suspend fun handlePresentationRequestAccepted(
+        protocolInstance: PresentationExchangeHolderProtocol,
+    ) {
+        protocolInstance.protocolState.request?.let {
+            val credentials = credentialCache.filterCredentials(it.inputDescriptor.frame)
+            if (credentials.isEmpty()) return
+            // pick credential - we pick the first credential without user interaction
+            val derivedCredential =
+                credentialCache.getCredential(credentials.get(0))?.value?.derive(it.inputDescriptor.frame)
+            derivedCredential ?: return
+            val ldProofHolder = LdProof(
+                type = listOf(ProofType.BbsBlsSignature2020.name),
+                created = Date(),
+                creator = Settings.credentialHolder.didKey,
+                proofPurpose = ProofPurpose.AUTHENTICATION,
+                verificationMethod = Settings.credentialHolder.verificationMethod
+            )
+
+            protocolInstance.submitPresentation(
+                PresentationSubmit(
+                    UUID.randomUUID().toString(),
+                    presentation = Presentation(
+                        id = UUID.randomUUID().toString(),
+                        verifiableCredential = listOf(
+                            derivedCredential
+                        ),
+                        presentationSubmission = PresentationSubmission(
+                            definitionId = UUID.randomUUID(),
+                            descriptorMap = listOf(
+                                PresentationSubmission.DescriptorMapEntry(
+                                    id = it.inputDescriptor.id,
+                                    format = ClaimFormat.LDP_VC,
+                                    path = "\$.verifiableCredential[0]"
+                                )
+                            )
+
+                        )
+
+                    ).apply {
+                        sign(ldProofHolder, BbsPlusSigner(Settings.credentialHolder.keyPair))
+                    }
+                )
+            )
+
+        }
+        protocolInstance.close()
+    }
 }
 
 // live debugging

@@ -6,7 +6,6 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import de.gematik.security.credentialExchangeLib.credentialSubjects.Insurance
-import de.gematik.security.credentialExchangeLib.credentialSubjects.InsuranceType
 import de.gematik.security.credentialExchangeLib.credentialSubjects.VaccinationEvent
 import de.gematik.security.credentialExchangeLib.json
 import de.gematik.security.credentialExchangeLib.protocols.Credential
@@ -14,10 +13,7 @@ import de.gematik.security.mobilewallet.MainActivity
 import de.gematik.security.mobilewallet.R
 import de.gematik.security.mobilewallet.databinding.CredentialCardBinding
 import de.gematik.security.mobilewallet.toSimpleString
-import kotlinx.datetime.LocalDate
-import kotlinx.serialization.json.*
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
+import kotlinx.serialization.json.decodeFromJsonElement
 
 /**
  * Created by rk on 05.10.2021.

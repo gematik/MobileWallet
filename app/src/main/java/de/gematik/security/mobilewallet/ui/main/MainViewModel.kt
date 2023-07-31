@@ -4,7 +4,6 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import de.gematik.security.credentialExchangeLib.protocols.Credential
 import de.gematik.security.credentialExchangeLib.protocols.Invitation
-import java.util.*
 
 class MainViewModel : ViewModel() {
     val invitations = MutableLiveData<ArrayList<Invitation>>()

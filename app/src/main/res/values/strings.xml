@@ -18,6 +18,8 @@
     <string name="credential_confirmation_prompt">Do you want to request:</string>
     <string name="presentation_confirmation_title">Issue Presentation</string>
     <string name="presentation_confirmation_prompt">Do you want to share:</string>
+    <string name="presentation_sent_title">Presentation</string>
+    <string name="presentation_sent_goal">Check In</string>
     <string name="about_dialog">%1$s\napp id: %2$s\nversion: %3$s"</string>
     <string name="icon">icon</string>
     <string name="yes">Yes</string>

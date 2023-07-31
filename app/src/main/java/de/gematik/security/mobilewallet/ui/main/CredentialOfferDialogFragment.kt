@@ -43,6 +43,7 @@ class CredentialOfferDialogFragment : DialogFragment() {
             dismiss()
         }
         binding.Decline.setOnClickListener {
+            protocolInstance?.close()
             dismiss()
         }
         return binding.root
@@ -52,11 +53,11 @@ class CredentialOfferDialogFragment : DialogFragment() {
         private val ARG_TEXT = "Text"
         private val ARG_PROTOCOL_INSTANCE_ID = "ProtocolInstanceId"
         @JvmStatic
-        fun newInstance(text: String, protocolInstanceId: UUID) =
+        fun newInstance(protocolInstanceId: UUID, text: String) =
             CredentialOfferDialogFragment().apply {
                 arguments = Bundle().apply {
-                    putString(ARG_TEXT, text)
                     putString(ARG_PROTOCOL_INSTANCE_ID, protocolInstanceId.toString())
+                    putString(ARG_TEXT, text)
                 }
             }
     }

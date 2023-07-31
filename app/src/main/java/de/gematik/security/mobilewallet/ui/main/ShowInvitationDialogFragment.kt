@@ -28,6 +28,7 @@ class ShowInvitationDialogFragment : DialogFragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setStyle(STYLE_NORMAL, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
+
         arguments?.let {
             it.getString(ARG_CREDENTIAL_ID)?.let {
                 credential = (activity as MainActivity).controller.getCredential(it)?.value
@@ -41,11 +42,11 @@ class ShowInvitationDialogFragment : DialogFragment() {
         savedInstanceState: Bundle?
     ): View {
         val type = credential?.type?.first { it != "VerifiableCredential" }
-        val label = "Mobile Wallet 2"
-        val goal = if(type!=null) "Present $type" else "Present credentials"
+        val label = Settings.label
+        val goal = if (type != null) "Present $type" else "Present credentials"
         val goalCode = GoalCode.OFFER_PRESENTATION
         binding = ShowInvitationDialogFragmentBinding.inflate(inflater, container, false)
-        binding.credential.text = label
+        binding.credential.text = goal
         val invitation = createInvitation(UUID.randomUUID(), label, goal, goalCode)
         binding.qrcode.setImageBitmap(invitation.qrCode)
         binding.Decline.setOnClickListener {
@@ -78,7 +79,17 @@ class ShowInvitationDialogFragment : DialogFragment() {
             goal = goal,
             goalCode = goalCode,
             service = listOf(
-                Service(serviceEndpoint = URI("ws", null, address.hostAddress, Settings.wsServerPort, "/ws", null, null))
+                Service(
+                    serviceEndpoint = URI(
+                        "ws",
+                        null,
+                        address.hostAddress,
+                        Settings.wsServerPort,
+                        "/ws",
+                        null,
+                        null
+                    )
+                )
             )
         )
     }
