@@ -6,7 +6,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.widget.ViewPager2
 import com.apicatalog.jsonld.JsonLd
 import de.gematik.security.credentialExchangeLib.connection.WsConnection
-import de.gematik.security.credentialExchangeLib.crypto.BbsPlusSigner
 import de.gematik.security.credentialExchangeLib.crypto.ProofType
 import de.gematik.security.credentialExchangeLib.defaultJsonLdOptions
 import de.gematik.security.credentialExchangeLib.extensions.deepCopy
@@ -336,7 +335,8 @@ class Controller(val mainActivity: MainActivity) {
                 credentialCache.getCredential(credentials.get(0))?.value?.derive(it.inputDescriptor.frame)
             derivedCredential ?: return
             val ldProofHolder = LdProof(
-                type = listOf(ProofType.BbsBlsSignature2020.name),
+                atContext = listOf(URI("https://www.w3.org/2018/credentials/v1")),
+                type = listOf(ProofType.EcdsaSecp256r1Signature2019.name),
                 created = Date(),
                 creator = Settings.credentialHolder.didKey,
                 proofPurpose = ProofPurpose.AUTHENTICATION,
@@ -364,7 +364,7 @@ class Controller(val mainActivity: MainActivity) {
                         )
 
                     ).apply {
-                        sign(ldProofHolder, BbsPlusSigner(Settings.credentialHolder.keyPair))
+                        sign(ldProofHolder, Settings.credentialHolder.keyPair.privateKey!!)
                     }
                 )
             )
