@@ -49,7 +49,7 @@ class CredentialListFragment : Fragment() {
                     else -> false
                 }
             }
-        })
+        }, viewLifecycleOwner)
     }
 
     override fun onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo?) {

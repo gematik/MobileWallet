@@ -80,9 +80,9 @@ class MainActivity : AppCompatActivity() {
 //                    .replace(R.id.container, SettingsFragment()).addToBackStack("settings").commit()
 //            true
 //        }
-            R.id.sync -> {
-                true
-            }
+//            R.id.sync -> {
+//                true
+//            }
             R.id.about -> {
                 AboutDialogFragment().show(supportFragmentManager, "AboutDialog")
                 true
