@@ -247,7 +247,7 @@ class Controller(val mainActivity: MainActivity) {
         val request = CredentialRequest(
             UUID.randomUUID().toString(),
             outputDescriptor = protocolInstance.protocolState.offer!!.outputDescriptor,
-            holderKey = Settings.credentialHolder.didKey.toString()
+            holderKey = Settings.biometricCredentialHolder.didKey.toString()
         )
         protocolInstance.requestCredential(request)
         Log.d(TAG, "sent: ${request.type}")
@@ -338,9 +338,9 @@ class Controller(val mainActivity: MainActivity) {
                 atContext = listOf(URI("https://www.w3.org/2018/credentials/v1")),
                 type = listOf(ProofType.EcdsaSecp256r1Signature2019.name),
                 created = Date(),
-                creator = Settings.credentialHolder.didKey,
+                creator = Settings.biometricCredentialHolder.didKey,
                 proofPurpose = ProofPurpose.AUTHENTICATION,
-                verificationMethod = Settings.credentialHolder.verificationMethod
+                verificationMethod = Settings.biometricCredentialHolder.verificationMethod
             )
 
             protocolInstance.submitPresentation(
@@ -364,7 +364,7 @@ class Controller(val mainActivity: MainActivity) {
                         )
 
                     ).apply {
-                        sign(ldProofHolder, Settings.credentialHolder.keyPair.privateKey!!)
+                        asyncSign(ldProofHolder, Settings.biometricCredentialHolder.keyPair.privateKey!!, mainActivity)
                     }
                 )
             )

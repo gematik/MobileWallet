@@ -9,8 +9,11 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.appcompat.app.AppCompatActivity
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
+import de.gematik.security.credentialExchangeLib.crypto.CryptoRegistry
+import de.gematik.security.credentialExchangeLib.crypto.ProofType
 import de.gematik.security.credentialExchangeLib.json
 import de.gematik.security.credentialExchangeLib.protocols.Invitation
+import de.gematik.security.mobilewallet.crypto.BiometricSigner
 import de.gematik.security.mobilewallet.ui.main.AboutDialogFragment
 import de.gematik.security.mobilewallet.ui.main.MainPagerFragment
 import de.gematik.security.mobilewallet.ui.main.ShowInvitationDialogFragment
@@ -34,6 +37,11 @@ class MainActivity : AppCompatActivity() {
                 .commitNow()
         }
 
+        // register biometric signer
+        CryptoRegistry.registerSigner(ProofType.EcdsaSecp256r1Signature2019){
+            BiometricSigner(it)
+        }
+
         // scan qr code
         qrCodeScannerLauncher = registerForActivityResult(ScanContract())
         {
@@ -53,7 +61,6 @@ class MainActivity : AppCompatActivity() {
 
         // deep link clicked
         handleIntent(intent)
-
     }
 
     override fun onNewIntent(intent: Intent?) {
