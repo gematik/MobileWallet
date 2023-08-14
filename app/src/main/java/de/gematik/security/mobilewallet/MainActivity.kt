@@ -37,6 +37,8 @@ class MainActivity : AppCompatActivity() {
                 .commitNow()
         }
 
+
+
         // register biometric signer
         CryptoRegistry.registerSigner(ProofType.EcdsaSecp256r1Signature2019){
             BiometricSigner(it)

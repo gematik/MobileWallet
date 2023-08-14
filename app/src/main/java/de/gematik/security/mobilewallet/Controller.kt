@@ -310,30 +310,30 @@ class Controller(val mainActivity: MainActivity) {
         message: PresentationRequest
     ): Boolean {
         return if(protocolInstance.protocolState.invitation?.label != Settings.label){
-            withContext(Dispatchers.Main) {
-                PresentationSubmitDialogFragment.newInstance(
-                    protocolInstance.id,
-                    protocolInstance.protocolState.invitation?.goal ?: "unknown goal",
-                    protocolInstance.protocolState.invitation?.label ?: "unknown verifier"
-                ).show(mainActivity.supportFragmentManager, "presentation_sent")
-            }
-            true
+//            withContext(Dispatchers.Main) {
+//                PresentationSubmitDialogFragment.newInstance(
+//                    protocolInstance.id,
+//                    protocolInstance.protocolState.invitation?.goal ?: "unknown goal",
+//                    protocolInstance.protocolState.invitation?.label ?: "unknown verifier"
+//                ).show(mainActivity.supportFragmentManager, "presentation_sent")
+//            }
+//            true
+            handlePresentationRequestAccepted(protocolInstance)
         }else{
             handlePresentationRequestAccepted(protocolInstance)
-            false
         }
     }
 
     suspend fun handlePresentationRequestAccepted(
         protocolInstance: PresentationExchangeHolderProtocol,
-    ) {
+    ): Boolean {
         protocolInstance.protocolState.request?.let {
             val credentials = credentialCache.filterCredentials(it.inputDescriptor.frame)
-            if (credentials.isEmpty()) return
+            if (credentials.isEmpty()) return false
             // pick credential - we pick the first credential without user interaction
             val derivedCredential =
                 credentialCache.getCredential(credentials.get(0))?.value?.derive(it.inputDescriptor.frame)
-            derivedCredential ?: return
+            derivedCredential ?: return false
             val ldProofHolder = LdProof(
                 atContext = listOf(URI("https://www.w3.org/2018/credentials/v1")),
                 type = listOf(ProofType.EcdsaSecp256r1Signature2019.name),
@@ -370,7 +370,8 @@ class Controller(val mainActivity: MainActivity) {
             )
 
         }
-        protocolInstance.close()
+//        protocolInstance.close()
+        return false
     }
 }
 
