@@ -7,6 +7,8 @@ import android.view.Menu
 import android.view.MenuItem
 import androidx.activity.result.ActivityResultLauncher
 import androidx.appcompat.app.AppCompatActivity
+import androidx.security.crypto.EncryptedFile
+import androidx.security.crypto.MasterKey
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import de.gematik.security.credentialExchangeLib.crypto.CryptoRegistry
@@ -17,8 +19,12 @@ import de.gematik.security.mobilewallet.crypto.BiometricSigner
 import de.gematik.security.mobilewallet.ui.main.AboutDialogFragment
 import de.gematik.security.mobilewallet.ui.main.MainPagerFragment
 import de.gematik.security.mobilewallet.ui.main.ShowInvitationDialogFragment
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.net.URI
 import java.util.*
+
 
 class MainActivity : AppCompatActivity() {
 
@@ -36,8 +42,6 @@ class MainActivity : AppCompatActivity() {
                 .replace(R.id.container, MainPagerFragment())
                 .commitNow()
         }
-
-
 
         // register biometric signer
         CryptoRegistry.registerSigner(ProofType.EcdsaSecp256r1Signature2019){
@@ -63,6 +67,13 @@ class MainActivity : AppCompatActivity() {
 
         // deep link clicked
         handleIntent(intent)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (this::controller.isInitialized) {
+            controller.saveStores()
+        }
     }
 
     override fun onNewIntent(intent: Intent?) {

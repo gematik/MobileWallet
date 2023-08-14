@@ -14,6 +14,10 @@ class MainViewModel : ViewModel() {
         credentials.value = arrayListOf()
     }
 
+    fun setInvitations(invitations: HashMap<String, Invitation>) {
+        this.invitations.postValue(ArrayList(invitations.values))
+    }
+
     fun addInvitation(invitation: Invitation) {
         invitations.postValue(invitations.value?.apply {
             if (count { it.id == invitation.id } == 0) add(
@@ -31,7 +35,11 @@ class MainViewModel : ViewModel() {
     }
 
     fun removeAllInvitations() {
-        invitations.value = arrayListOf()
+        invitations.postValue(arrayListOf())
+    }
+
+    fun setCredentials(credentials: HashMap<String, Credential>) {
+        this.credentials.postValue(ArrayList(credentials.map{Pair(it.key, it.value)}))
     }
 
     fun addCredential(credential: Pair<String, Credential>) {
@@ -51,7 +59,7 @@ class MainViewModel : ViewModel() {
     }
 
     fun removeAllCredentials() {
-        credentials.value = arrayListOf()
+        credentials.postValue(arrayListOf())
     }
 
 }

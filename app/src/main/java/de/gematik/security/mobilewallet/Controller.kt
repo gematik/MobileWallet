@@ -3,6 +3,8 @@ package de.gematik.security.mobilewallet
 import android.util.Log
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
+import androidx.security.crypto.EncryptedFile
+import androidx.security.crypto.MasterKey
 import androidx.viewpager2.widget.ViewPager2
 import com.apicatalog.jsonld.JsonLd
 import de.gematik.security.credentialExchangeLib.connection.WsConnection
@@ -15,7 +17,6 @@ import de.gematik.security.credentialExchangeLib.protocols.*
 import de.gematik.security.mobilewallet.ui.main.CREDENTIALS_PAGE_ID
 import de.gematik.security.mobilewallet.ui.main.CredentialOfferDialogFragment
 import de.gematik.security.mobilewallet.ui.main.MainViewModel
-import de.gematik.security.mobilewallet.ui.main.PresentationSubmitDialogFragment
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.cio.*
@@ -29,6 +30,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import java.io.File
 import java.net.URI
 import java.util.*
 
@@ -41,19 +43,37 @@ import java.util.*
 class Controller(val mainActivity: MainActivity) {
     val TAG = Controller::class.java.name
 
-    private inner class InvitationCache() {
-        private val invitations = HashMap<String, Invitation>()
+    val viewModel by mainActivity.viewModels<MainViewModel>()
+
+    val masterKey = MasterKey.Builder(mainActivity)
+        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+        .setRequestStrongBoxBacked(true)
+        .build()
+
+    private inner class InvitationStore() {
+        private val invitations: HashMap<String, Invitation>
+
+        val fileStorageName: String = "invitations"
 
         init {
-            val preferences =
-                androidx.preference.PreferenceManager.getDefaultSharedPreferences(mainActivity.applicationContext)
-            val invitations = preferences.getStringSet("invitations", null)
-            invitations?.forEach {
-                addInvitation(Json.decodeFromString<Invitation>(it))
-            }
+            val restoredInvitations = runCatching {
+                val file = File(mainActivity.filesDir, fileStorageName)
+                val encryptedFile: EncryptedFile = EncryptedFile.Builder(
+                    mainActivity,
+                    file,
+                    masterKey,
+                    EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB
+                ).build()
+                json.decodeFromString<HashMap<String, Invitation>>(encryptedFile.openFileInput().use {
+                    it.bufferedReader().use {
+                        it.readText()
+                    }
+                })
+            }.getOrNull() ?: HashMap<String, Invitation>()
+            invitations = restoredInvitations
+            viewModel.setInvitations(invitations)
         }
 
-        val viewModel by mainActivity.viewModels<MainViewModel>()
 
         fun addInvitation(invitation: Invitation) {
             invitations.put(invitation.id, invitation)
@@ -73,24 +93,56 @@ class Controller(val mainActivity: MainActivity) {
             invitations.clear()
             viewModel.removeAllInvitations()
         }
-    }
 
-    private val invitationCache = InvitationCache()
-
-    private inner class CredentialCache() {
-
-        private val credentials = HashMap<String, Credential>()
-
-        init {
-            val preferences =
-                androidx.preference.PreferenceManager.getDefaultSharedPreferences(mainActivity.applicationContext)
-            val credentials = preferences.getStringSet("credentials", null)
-            credentials?.forEach {
-                addCredential(Json.decodeFromString<Credential>(it))
+        fun save() {
+            mainActivity.lifecycleScope.launch(Dispatchers.IO) {
+                runCatching {
+                    val file = File(mainActivity.filesDir, fileStorageName)
+                    if(file.exists()){
+                        file.delete()
+                    }
+                    val encryptedFile: EncryptedFile = EncryptedFile.Builder(
+                        mainActivity,
+                        file,
+                        masterKey,
+                        EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB
+                    ).build()
+                    encryptedFile.openFileOutput().use {
+                        it.bufferedWriter().use {
+                            it.write(json.encodeToString<HashMap<String, Invitation>>(invitations))
+                        }
+                    }
+                }
             }
         }
+    }
 
-        val viewModel by mainActivity.viewModels<MainViewModel>()
+    private val invitationStore = InvitationStore()
+
+    private inner class CredentialStore() {
+
+        private val credentials : HashMap<String, Credential>
+
+        val fileStorageName: String = "credentials"
+
+        init {
+            val restoredCredentials = runCatching {
+                val file = File(mainActivity.filesDir, fileStorageName)
+                val encryptedFile: EncryptedFile = EncryptedFile.Builder(
+                    mainActivity,
+                    file,
+                    masterKey,
+                    EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB
+                ).build()
+                json.decodeFromString<HashMap<String, Credential>>(encryptedFile.openFileInput().use {
+                    it.bufferedReader().use {
+                        it.readText()
+                    }
+                })
+            }.getOrNull() ?: HashMap<String, Credential>()
+            credentials = restoredCredentials
+            viewModel.setCredentials(credentials)
+        }
 
         fun addCredential(credential: Credential) {
             val id = credential.id ?: UUID.randomUUID().toString()
@@ -124,9 +176,33 @@ class Controller(val mainActivity: MainActivity) {
             }
         }
 
+        fun save() {
+            runCatching {
+                val file = File(mainActivity.filesDir, fileStorageName)
+                if(file.exists()){
+                    file.delete()
+                }
+                val encryptedFile: EncryptedFile = EncryptedFile.Builder(
+                    mainActivity,
+                    file,
+                    masterKey,
+                    EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB
+                ).build()
+                encryptedFile.openFileOutput().use {
+                    it.bufferedWriter().use {
+                        it.write(json.encodeToString<HashMap<String, Credential>>(credentials))
+                    }
+                }
+            }
+        }
     }
 
-    private val credentialCache = CredentialCache()
+    private val credentialStore = CredentialStore()
+
+    fun saveStores() {
+        invitationStore.save()
+        credentialStore.save()
+    }
 
     enum class SignatureType {
         Ed25519Signature2018,
@@ -151,7 +227,7 @@ class Controller(val mainActivity: MainActivity) {
 
     fun acceptInvitation(invitation: Invitation) {
         mainActivity.lifecycleScope.launch(CoroutineName("")) {
-            invitationCache.addInvitation(invitation)
+            invitationStore.addInvitation(invitation)
             invitation.service[0].serviceEndpoint?.let { serviceEndpoint ->
                 Log.d(TAG, "invitation accepted from ${serviceEndpoint.host}:${serviceEndpoint.port}")
                 when (invitation.goalCode) {
@@ -194,23 +270,23 @@ class Controller(val mainActivity: MainActivity) {
     }
 
     fun removeAllInvitations() {
-        invitationCache.removeAllInvitations()
+        invitationStore.removeAllInvitations()
     }
 
     fun removeInvitation(id: String) {
-        invitationCache.removeInvitation(id)
+        invitationStore.removeInvitation(id)
     }
 
     fun removeAllCredentials() {
-        credentialCache.removeAllCredentials()
+        credentialStore.removeAllCredentials()
     }
 
     fun removeCredential(id: String) {
-        credentialCache.removeCredential(id)
+        credentialStore.removeCredential(id)
     }
 
     fun getCredential(id: String): Map.Entry<String, Credential>? {
-        return credentialCache.getCredential(id)
+        return credentialStore.getCredential(id)
     }
 
     // issue credentials
@@ -257,7 +333,7 @@ class Controller(val mainActivity: MainActivity) {
         protocolInstance: CredentialExchangeHolderProtocol,
         submit: CredentialSubmit
     ): Boolean {
-        credentialCache.addCredential(submit.credential)
+        credentialStore.addCredential(submit.credential)
         Log.d(TAG, "stored: ${submit.credential.type}}")
         withContext(Dispatchers.Main) {
             mainActivity.findViewById<ViewPager2>(R.id.view_pager)?.currentItem = CREDENTIALS_PAGE_ID
@@ -279,6 +355,7 @@ class Controller(val mainActivity: MainActivity) {
                 protocolInstance,
                 message as PresentationRequest
             )
+
             else -> true //ignore
         }
     }
@@ -309,7 +386,7 @@ class Controller(val mainActivity: MainActivity) {
         protocolInstance: PresentationExchangeHolderProtocol,
         message: PresentationRequest
     ): Boolean {
-        return if(protocolInstance.protocolState.invitation?.label != Settings.label){
+        return if (protocolInstance.protocolState.invitation?.label != Settings.label) {
 //            withContext(Dispatchers.Main) {
 //                PresentationSubmitDialogFragment.newInstance(
 //                    protocolInstance.id,
@@ -319,7 +396,7 @@ class Controller(val mainActivity: MainActivity) {
 //            }
 //            true
             handlePresentationRequestAccepted(protocolInstance)
-        }else{
+        } else {
             handlePresentationRequestAccepted(protocolInstance)
         }
     }
@@ -328,11 +405,11 @@ class Controller(val mainActivity: MainActivity) {
         protocolInstance: PresentationExchangeHolderProtocol,
     ): Boolean {
         protocolInstance.protocolState.request?.let {
-            val credentials = credentialCache.filterCredentials(it.inputDescriptor.frame)
+            val credentials = credentialStore.filterCredentials(it.inputDescriptor.frame)
             if (credentials.isEmpty()) return false
             // pick credential - we pick the first credential without user interaction
             val derivedCredential =
-                credentialCache.getCredential(credentials.get(0))?.value?.derive(it.inputDescriptor.frame)
+                credentialStore.getCredential(credentials.get(0))?.value?.derive(it.inputDescriptor.frame)
             derivedCredential ?: return false
             val ldProofHolder = LdProof(
                 atContext = listOf(URI("https://www.w3.org/2018/credentials/v1")),
