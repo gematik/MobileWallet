@@ -40,7 +40,10 @@ class PresentationSubmitDialogFragment : DialogFragment() {
         binding.Accept.setOnClickListener {
             runBlocking {
                 protocolInstance?.let {
-                    (activity as MainActivity).controller.handlePresentationRequestAccepted(it)
+                    (activity as MainActivity).controller.handlePresentationRequest(
+                        it,
+                        it.protocolState.request!!
+                    )
                 }
             }
             dismiss()

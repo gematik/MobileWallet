@@ -1,6 +1,7 @@
 package de.gematik.security.mobilewallet
 
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.security.crypto.EncryptedFile
@@ -98,7 +99,7 @@ class Controller(val mainActivity: MainActivity) {
             mainActivity.lifecycleScope.launch(Dispatchers.IO) {
                 runCatching {
                     val file = File(mainActivity.filesDir, fileStorageName)
-                    if(file.exists()){
+                    if (file.exists()) {
                         file.delete()
                     }
                     val encryptedFile: EncryptedFile = EncryptedFile.Builder(
@@ -121,7 +122,7 @@ class Controller(val mainActivity: MainActivity) {
 
     private inner class CredentialStore() {
 
-        private val credentials : HashMap<String, Credential>
+        private val credentials: HashMap<String, Credential>
 
         val fileStorageName: String = "credentials"
 
@@ -179,7 +180,7 @@ class Controller(val mainActivity: MainActivity) {
         fun save() {
             runCatching {
                 val file = File(mainActivity.filesDir, fileStorageName)
-                if(file.exists()){
+                if (file.exists()) {
                     file.delete()
                 }
                 val encryptedFile: EncryptedFile = EncryptedFile.Builder(
@@ -382,29 +383,11 @@ class Controller(val mainActivity: MainActivity) {
         return true
     }
 
-    private suspend fun handlePresentationRequest(
+    suspend fun handlePresentationRequest(
         protocolInstance: PresentationExchangeHolderProtocol,
-        message: PresentationRequest
+        presentationRequest: PresentationRequest
     ): Boolean {
-        return if (protocolInstance.protocolState.invitation?.label != Settings.label) {
-//            withContext(Dispatchers.Main) {
-//                PresentationSubmitDialogFragment.newInstance(
-//                    protocolInstance.id,
-//                    protocolInstance.protocolState.invitation?.goal ?: "unknown goal",
-//                    protocolInstance.protocolState.invitation?.label ?: "unknown verifier"
-//                ).show(mainActivity.supportFragmentManager, "presentation_sent")
-//            }
-//            true
-            handlePresentationRequestAccepted(protocolInstance)
-        } else {
-            handlePresentationRequestAccepted(protocolInstance)
-        }
-    }
-
-    suspend fun handlePresentationRequestAccepted(
-        protocolInstance: PresentationExchangeHolderProtocol,
-    ): Boolean {
-        protocolInstance.protocolState.request?.let {
+        presentationRequest.let {
             val credentials = credentialStore.filterCredentials(it.inputDescriptor.frame)
             if (credentials.isEmpty()) return false
             // pick credential - we pick the first credential without user interaction
@@ -421,34 +404,44 @@ class Controller(val mainActivity: MainActivity) {
             )
 
             protocolInstance.submitPresentation(
-                PresentationSubmit(
-                    UUID.randomUUID().toString(),
-                    presentation = Presentation(
-                        id = UUID.randomUUID().toString(),
-                        verifiableCredential = listOf(
-                            derivedCredential
-                        ),
-                        presentationSubmission = PresentationSubmission(
-                            definitionId = UUID.randomUUID(),
-                            descriptorMap = listOf(
-                                PresentationSubmission.DescriptorMapEntry(
-                                    id = it.inputDescriptor.id,
-                                    format = ClaimFormat.LDP_VC,
-                                    path = "\$.verifiableCredential[0]"
+                runCatching {
+                    PresentationSubmit(
+                        UUID.randomUUID().toString(),
+                        presentation = Presentation(
+                            id = UUID.randomUUID().toString(),
+                            verifiableCredential = listOf(
+                                derivedCredential
+                            ),
+                            presentationSubmission = PresentationSubmission(
+                                definitionId = UUID.randomUUID(),
+                                descriptorMap = listOf(
+                                    PresentationSubmission.DescriptorMapEntry(
+                                        id = it.inputDescriptor.id,
+                                        format = ClaimFormat.LDP_VC,
+                                        path = "\$.verifiableCredential[0]"
+                                    )
                                 )
+
                             )
 
-                        )
-
-                    ).apply {
-                        asyncSign(ldProofHolder, Settings.biometricCredentialHolder.keyPair.privateKey!!, mainActivity)
-                    }
-                )
+                        ).apply {
+                            asyncSign(
+                                ldProofHolder,
+                                Settings.biometricCredentialHolder.keyPair.privateKey!!,
+                                mainActivity
+                            )
+                        }
+                    )
+                }.onFailure { Toast.makeText(mainActivity, "$it", Toast.LENGTH_LONG).show() }.getOrThrow()
             )
+            mainActivity.supportFragmentManager.run {
+                findFragmentByTag("show_invitation")?.let {
+                    this.beginTransaction().remove(it).commit()
+                }
 
+            }
+            return false
         }
-//        protocolInstance.close()
-        return false
     }
 }
 
@@ -465,7 +458,11 @@ val debugState = DebugState()
 fun Application.module() {
     routing {
         get("/") {
-            call.respondText(json.encodeToString(debugState), ContentType.parse("application/json"), HttpStatusCode.OK)
+            call.respondText(
+                json.encodeToString(debugState),
+                ContentType.parse("application/json"),
+                HttpStatusCode.OK
+            )
         }
     }
 }

@@ -50,10 +50,6 @@ class BiometricSigner(keyPair: KeyPair) : Signer, AsyncSigner {
                         ) {
                             Log.i(tag, "authentication error: $errorCode - $errString")
                             super.onAuthenticationError(errorCode, errString)
-                            Toast.makeText(
-                                context,
-                                "Authentication error: $errString", Toast.LENGTH_SHORT
-                            ).show()
                             channel.trySend(false)
                         }
 
@@ -68,11 +64,6 @@ class BiometricSigner(keyPair: KeyPair) : Signer, AsyncSigner {
                         override fun onAuthenticationFailed() {
                             Log.i(tag, "authentication failed")
                             super.onAuthenticationFailed()
-                            Toast.makeText(
-                                context, "Authentication failed",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                            channel.trySend(false)
                         }
                     }).authenticate(
                     BiometricPrompt.PromptInfo.Builder()
