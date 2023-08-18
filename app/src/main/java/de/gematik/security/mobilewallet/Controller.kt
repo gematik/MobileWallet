@@ -389,11 +389,17 @@ class Controller(val mainActivity: MainActivity) {
     ): Boolean {
         presentationRequest.let {
             val credentials = credentialStore.filterCredentials(it.inputDescriptor.frame)
-            if (credentials.isEmpty()) return false
+            if (credentials.isEmpty()) {
+                Toast.makeText(mainActivity, "No sufficient credential found!", Toast.LENGTH_LONG).show()
+                return false
+            }
             // pick credential - we pick the first credential without user interaction
             val derivedCredential =
                 credentialStore.getCredential(credentials.get(0))?.value?.derive(it.inputDescriptor.frame)
-            derivedCredential ?: return false
+            if (derivedCredential == null) {
+                Toast.makeText(mainActivity, "Could not derive credential!", Toast.LENGTH_LONG).show()
+                return false
+            }
             val ldProofHolder = LdProof(
                 atContext = listOf(URI("https://www.w3.org/2018/credentials/v1")),
                 type = listOf(ProofType.EcdsaSecp256r1Signature2019.name),
@@ -440,6 +446,7 @@ class Controller(val mainActivity: MainActivity) {
                 }
 
             }
+            Toast.makeText(mainActivity, "${derivedCredential.type.first { !it.contains("VerifiableCredential") }} sent", Toast.LENGTH_LONG).show()
             return false
         }
     }
