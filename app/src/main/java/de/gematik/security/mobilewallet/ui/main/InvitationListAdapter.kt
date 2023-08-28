@@ -42,7 +42,7 @@ class InvitationListAdapter(private val activity: MainActivity) :
         init {
             binding.root.setOnClickListener {
                 if (adapterPosition < 0) return@setOnClickListener
-                getItem(adapterPosition).id.let { id ->
+                getItem(adapterPosition).id?.let { id ->
                     activity.supportFragmentManager.beginTransaction()
                         .replace(R.id.container, InvitationDetailFragment.newInstance(id)).addToBackStack( "invitation_confirm" ).commit()
                 }
@@ -57,7 +57,7 @@ class InvitationListAdapter(private val activity: MainActivity) :
         fun bind(invitation: Invitation) {
             binding.apply {
                 label.text = invitation.label
-                invitationId.text = "${invitation.id.substring(0..7)}..${invitation.id.substring(24)}"
+                invitationId.text = "${invitation.id?.substring(0..7)}..${invitation.id?.substring(24)}"
                 goal.text = invitation.goal
             }
         }

@@ -12,6 +12,7 @@ import de.gematik.security.credentialExchangeLib.connection.WsConnection
 import de.gematik.security.credentialExchangeLib.crypto.ProofType
 import de.gematik.security.credentialExchangeLib.defaultJsonLdOptions
 import de.gematik.security.credentialExchangeLib.extensions.deepCopy
+import de.gematik.security.credentialExchangeLib.extensions.toIsoInstantString
 import de.gematik.security.credentialExchangeLib.extensions.toJsonDocument
 import de.gematik.security.credentialExchangeLib.json
 import de.gematik.security.credentialExchangeLib.protocols.*
@@ -33,6 +34,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.net.URI
+import java.time.ZonedDateTime
 import java.util.*
 
 
@@ -77,7 +79,7 @@ class Controller(val mainActivity: MainActivity) {
 
 
         fun addInvitation(invitation: Invitation) {
-            invitations.put(invitation.id, invitation)
+            invitations.put(invitation.id!!, invitation)
             viewModel.addInvitation(invitation)
         }
 
@@ -324,7 +326,7 @@ class Controller(val mainActivity: MainActivity) {
         val request = CredentialRequest(
             UUID.randomUUID().toString(),
             outputDescriptor = protocolInstance.protocolState.offer!!.outputDescriptor,
-            holderKey = Settings.biometricCredentialHolder.didKey.toString()
+            holderKey = Settings.biometricCredentialHolder.didKey
         )
         protocolInstance.requestCredential(request)
         Log.d(TAG, "sent: ${request.type}")
@@ -403,7 +405,7 @@ class Controller(val mainActivity: MainActivity) {
             val ldProofHolder = LdProof(
                 atContext = listOf(URI("https://www.w3.org/2018/credentials/v1")),
                 type = listOf(ProofType.EcdsaSecp256r1Signature2019.name),
-                created = Date(),
+                created = ZonedDateTime.now(),
                 creator = Settings.biometricCredentialHolder.didKey,
                 proofPurpose = ProofPurpose.AUTHENTICATION,
                 verificationMethod = Settings.biometricCredentialHolder.verificationMethod

@@ -8,11 +8,6 @@ import de.gematik.security.credentialExchangeLib.protocols.Invitation
 import java.text.SimpleDateFormat
 import java.util.*
 
-internal val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-
-fun String.toDate() = sdf.parse(this)
-fun Date.toSimpleString() = sdf.format(this)
-
 val Invitation.url: String
     get() = "https://my-wallet.me/ssi?oob=${this.toBase64()}"
 

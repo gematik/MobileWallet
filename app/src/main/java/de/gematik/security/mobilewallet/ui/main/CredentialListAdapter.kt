@@ -12,8 +12,9 @@ import de.gematik.security.credentialExchangeLib.protocols.Credential
 import de.gematik.security.mobilewallet.MainActivity
 import de.gematik.security.mobilewallet.R
 import de.gematik.security.mobilewallet.databinding.CredentialCardBinding
-import de.gematik.security.mobilewallet.toSimpleString
 import kotlinx.serialization.json.decodeFromJsonElement
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 
 /**
  * Created by rk on 05.10.2021.
@@ -60,7 +61,7 @@ class CredentialListAdapter(private val activity: MainActivity) :
 
         }
 
-        fun bind(entry: Pair<String, Credential> ) {
+        fun bind(entry: Pair<String, Credential>) {
             binding.apply {
                 credentialId.text = "${entry.first.substring(0..7)}..${entry.first.substring(24)}"
                 when {
@@ -73,7 +74,7 @@ class CredentialListAdapter(private val activity: MainActivity) :
                                 it.getOrDefault("familyName", "noName"),
                                 it.getOrDefault("birthDate", "")
                             )
-                        }?:"credential without subject"
+                        } ?: "credential without subject"
                         imageView.setImageDrawable(activity.getDrawable(R.drawable.ic_identitycard))
                     }
 
@@ -83,7 +84,9 @@ class CredentialListAdapter(private val activity: MainActivity) :
                             content.text = String.format(
                                 "%s - %s - %s\n%s",
                                 it.insurant.insurantId,
-                                it.coverage?.start?.toSimpleString(),
+                                it.coverage?.start?.let {
+                                    ZonedDateTime.parse(it).format(DateTimeFormatter.ISO_LOCAL_DATE)
+                                },
                                 it.coverage?.insuranceType?.name,
                                 it.coverage?.costCenter?.name
                             )
@@ -97,7 +100,9 @@ class CredentialListAdapter(private val activity: MainActivity) :
                             content.text = String.format(
                                 "%s - %s - %s\n%s",
                                 it.vaccine?.medicalProductName,
-                                it.dateOfVaccination?.toSimpleString(),
+                                it.dateOfVaccination?.let {
+                                    ZonedDateTime.parse(it).format(DateTimeFormatter.ISO_LOCAL_DATE)
+                                },
                                 it.order,
                                 it.administeringCentre
                             )
@@ -114,7 +119,7 @@ class CredentialListAdapter(private val activity: MainActivity) :
                                 it.getOrDefault("familyName", "noName"),
                                 it.getOrDefault("birthdate", "")
                             )
-                        }?:"credential without subject"
+                        } ?: "credential without subject"
                         imageView.setImageDrawable(activity.getDrawable(R.drawable.ic_identitycard))
                     }
 
@@ -127,7 +132,7 @@ class CredentialListAdapter(private val activity: MainActivity) :
                                 it.getOrDefault("familyName", "noName"),
                                 it.getOrDefault("email", "")
                             )
-                        }?:"credential without subject"
+                        } ?: "credential without subject"
                         imageView.setImageDrawable(activity.getDrawable(R.drawable.ic_nccard))
                     }
 
@@ -141,12 +146,12 @@ class CredentialListAdapter(private val activity: MainActivity) :
         }
     }
 
-    object CredentialDiffCallback : DiffUtil.ItemCallback<Pair<String,Credential>>() {
-        override fun areItemsTheSame(oldItem: Pair<String,Credential>, newItem: Pair<String,Credential>): Boolean {
+    object CredentialDiffCallback : DiffUtil.ItemCallback<Pair<String, Credential>>() {
+        override fun areItemsTheSame(oldItem: Pair<String, Credential>, newItem: Pair<String, Credential>): Boolean {
             return oldItem == newItem
         }
 
-        override fun areContentsTheSame(oldItem: Pair<String,Credential>, newItem: Pair<String,Credential>): Boolean {
+        override fun areContentsTheSame(oldItem: Pair<String, Credential>, newItem: Pair<String, Credential>): Boolean {
             return oldItem.first == newItem.first
         }
     }
