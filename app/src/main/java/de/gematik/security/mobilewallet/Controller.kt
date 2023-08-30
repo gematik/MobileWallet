@@ -168,8 +168,15 @@ class Controller(val mainActivity: MainActivity) {
         }
 
         fun filterCredentials(frame: Credential): List<String> {
-            //TODO: Implement framing
+            val frameContext = frame.atContext ?: return emptyList()
             return credentials.mapNotNull {
+                // check if contexts match
+                frameContext.forEach { uri ->
+                    if(it.value.atContext?.contains(uri) == false){
+                        return@mapNotNull null
+                    }
+                }
+                // frame credential and check if credential subject isn't null
                 val credential = it.value.deepCopy().apply { proof = null }
                 val inputDocument = credential.toJsonDocument()
                 val frameDocument = frame.toJsonDocument()

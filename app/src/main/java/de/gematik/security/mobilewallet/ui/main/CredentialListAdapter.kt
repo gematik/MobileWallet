@@ -7,6 +7,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import de.gematik.security.credentialExchangeLib.credentialSubjects.Insurance
 import de.gematik.security.credentialExchangeLib.credentialSubjects.VaccinationEvent
+import de.gematik.security.credentialExchangeLib.extensions.toObject
 import de.gematik.security.credentialExchangeLib.json
 import de.gematik.security.credentialExchangeLib.protocols.Credential
 import de.gematik.security.mobilewallet.MainActivity
@@ -80,7 +81,7 @@ class CredentialListAdapter(private val activity: MainActivity) :
 
                     entry.second.type.contains("InsuranceCertificate") -> {
                         label.text = "Insurance Certificate"
-                        json.decodeFromJsonElement<Insurance>(entry.second.credentialSubject!!).let {
+                        entry.second.credentialSubject?.toObject<Insurance>()?.let {
                             content.text = String.format(
                                 "%s - %s - %s\n%s",
                                 it.insurant.insurantId,
@@ -96,7 +97,7 @@ class CredentialListAdapter(private val activity: MainActivity) :
 
                     entry.second.type.contains("VaccinationCertificate") -> {
                         label.text = "Vaccination Certificate"
-                        json.decodeFromJsonElement<VaccinationEvent>(entry.second.credentialSubject!!).let {
+                        entry.second.credentialSubject?.toObject<VaccinationEvent>()?.let {
                             content.text = String.format(
                                 "%s - %s - %s\n%s",
                                 it.vaccine?.medicalProductName,
