@@ -53,6 +53,8 @@ dependencies {
     implementation ('de.gematik:credentialExchangeLib:0.3.0-SNAPSHOT') {
         exclude group: 'net.jcip', module: 'jcip-annotations'
         exclude group: 'ch.qos.logback'
+        exclude group: 'com.google.crypto.tink'
+        exclude group: 'org.didcommx'
     }
     implementation 'org.slf4j:slf4j-api:2.0.7'
     implementation 'com.github.tony19:logback-android:3.0.0'

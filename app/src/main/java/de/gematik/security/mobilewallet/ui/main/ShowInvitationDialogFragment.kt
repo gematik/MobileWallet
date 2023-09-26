@@ -25,6 +25,8 @@ class ShowInvitationDialogFragment : DialogFragment() {
 
     private var credential: Credential? = null
 
+    var invitation : Invitation? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setStyle(STYLE_NORMAL, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
@@ -47,8 +49,8 @@ class ShowInvitationDialogFragment : DialogFragment() {
         val goalCode = GoalCode.OFFER_PRESENTATION
         binding = ShowInvitationDialogFragmentBinding.inflate(inflater, container, false)
         binding.credential.text = goal
-        val invitation = createInvitation(UUID.randomUUID(), label, goal, goalCode)
-        binding.qrcode.setImageBitmap(invitation.qrCode)
+        invitation = createInvitation(UUID.randomUUID(), label, goal, goalCode)
+        binding.qrcode.setImageBitmap(invitation?.qrCode)
         binding.Decline.setOnClickListener {
             dismiss()
         }

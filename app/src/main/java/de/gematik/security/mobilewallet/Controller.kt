@@ -8,17 +8,19 @@ import androidx.security.crypto.EncryptedFile
 import androidx.security.crypto.MasterKey
 import androidx.viewpager2.widget.ViewPager2
 import com.apicatalog.jsonld.JsonLd
-import de.gematik.security.credentialExchangeLib.connection.WsConnection
+import de.gematik.security.credentialExchangeLib.connection.MessageType
+import de.gematik.security.credentialExchangeLib.connection.websocket.WsConnection
 import de.gematik.security.credentialExchangeLib.crypto.ProofType
 import de.gematik.security.credentialExchangeLib.defaultJsonLdOptions
+import de.gematik.security.credentialExchangeLib.extensions.createUri
 import de.gematik.security.credentialExchangeLib.extensions.deepCopy
-import de.gematik.security.credentialExchangeLib.extensions.toIsoInstantString
 import de.gematik.security.credentialExchangeLib.extensions.toJsonDocument
 import de.gematik.security.credentialExchangeLib.json
 import de.gematik.security.credentialExchangeLib.protocols.*
 import de.gematik.security.mobilewallet.ui.main.CREDENTIALS_PAGE_ID
 import de.gematik.security.mobilewallet.ui.main.CredentialOfferDialogFragment
 import de.gematik.security.mobilewallet.ui.main.MainViewModel
+import de.gematik.security.mobilewallet.ui.main.ShowInvitationDialogFragment
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.cio.*
@@ -172,7 +174,7 @@ class Controller(val mainActivity: MainActivity) {
             return credentials.mapNotNull {
                 // check if contexts match
                 frameContext.forEach { uri ->
-                    if(it.value.atContext?.contains(uri) == false){
+                    if (it.value.atContext?.contains(uri) == false) {
                         return@mapNotNull null
                     }
                 }
@@ -219,66 +221,6 @@ class Controller(val mainActivity: MainActivity) {
         BbsBlsSignature2020
     }
 
-    fun start() {
-        PresentationExchangeHolderProtocol.listen(WsConnection, port = Settings.wsServerPort) {
-            while (it.protocolState.state != PresentationExchangeHolderProtocol.State.CLOSED) {
-                debugState.presentationExchange = it.protocolState
-                val message = runCatching {
-                    it.receive()
-                }.onFailure { Log.d(TAG, "exception: ${it.message}") }.getOrNull() ?: break
-                Log.d(TAG, "received: ${message.type}")
-                if (!handleIncomingMessage(it, message)) break
-            }
-            debugState.presentationExchange = it.protocolState.copy()
-        }
-        // endpoint for debugging and demo purposes
-        embeddedServer(CIO, port = Settings.wsServerPort + 1, host = "0.0.0.0", module = Application::module).start()
-    }
-
-    fun acceptInvitation(invitation: Invitation) {
-        mainActivity.lifecycleScope.launch(CoroutineName("")) {
-            invitationStore.addInvitation(invitation)
-            invitation.service[0].serviceEndpoint?.let { serviceEndpoint ->
-                Log.d(TAG, "invitation accepted from ${serviceEndpoint.host}:${serviceEndpoint.port}")
-                when (invitation.goalCode) {
-                    GoalCode.REQUEST_PRESENTATION -> PresentationExchangeHolderProtocol.connect(
-                        WsConnection,
-                        host = serviceEndpoint.host,
-                        serviceEndpoint.port
-                    ) {
-                        it.sendInvitation(invitation)
-                        while (it.protocolState.state != PresentationExchangeHolderProtocol.State.CLOSED) {
-                            debugState.presentationExchange = it.protocolState
-                            val message = runCatching {
-                                it.receive()
-                            }.onFailure { Log.d(TAG, "exception: ${it.message}") }.getOrNull() ?: break
-                            Log.d(TAG, "received: ${message.type}")
-                            if (!handleIncomingMessage(it, message)) break
-                        }
-                        debugState.presentationExchange = it.protocolState.copy()
-                    }
-
-                    else -> CredentialExchangeHolderProtocol.connect(
-                        WsConnection,
-                        host = serviceEndpoint.host,
-                        serviceEndpoint.port
-                    ) {
-                        it.sendInvitation(invitation)
-                        while (it.protocolState.state != CredentialExchangeHolderProtocol.State.CLOSED) {
-                            debugState.issueCredential = it.protocolState
-                            val message = runCatching {
-                                it.receive()
-                            }.onFailure { Log.d(TAG, "exception: ${it.message}") }.getOrNull() ?: break
-                            Log.d(TAG, "received: ${message.type}")
-                            if (!handleIncomingMessage(it, message)) break
-                        }
-                        debugState.issueCredential = it.protocolState.copy()
-                    }
-                }
-            }
-        }
-    }
-
     fun removeAllInvitations() {
         invitationStore.removeAllInvitations()
     }
@@ -299,21 +241,87 @@ class Controller(val mainActivity: MainActivity) {
         return credentialStore.getCredential(id)
     }
 
-    // issue credentials
+    // protocol etstablishment
+    // invitations are accepted by scanning or clicking an QR-code. Further processing depends on goal code.
+    fun acceptInvitation(invitation: Invitation) {
+        mainActivity.lifecycleScope.launch(CoroutineName("")) {
+            invitationStore.addInvitation(invitation)
+            invitation.service[0].serviceEndpoint.let { serviceEndpoint ->
+                Log.d(TAG, "invitation accepted from ${serviceEndpoint.host}:${serviceEndpoint.port}")
+                when (invitation.goalCode) {
+                    GoalCode.REQUEST_PRESENTATION -> PresentationExchangeHolderProtocol.connect(
+                        WsConnection,
+                        to = createUri(serviceEndpoint.host, serviceEndpoint.port),
+                        invitationId = UUID.fromString(invitation.id)
+                    ) {
+                        while (it.protocolState.state != PresentationExchangeHolderProtocol.State.CLOSED) {
+                            debugState.presentationExchange = it.protocolState
+                            val message = runCatching {
+                                it.receive()
+                            }.onFailure { Log.d(TAG, "exception: ${it.message}") }.getOrNull() ?: break
+                            Log.d(TAG, "received: ${message.type}")
+                            if (!handleIncomingMessage(it, message)) break
+                        }
+                        debugState.presentationExchange = it.protocolState.copy()
+                    }
 
+                    else -> CredentialExchangeHolderProtocol.connect(
+                        WsConnection,
+                        to = createUri(serviceEndpoint.host, serviceEndpoint.port),
+                        invitationId = UUID.fromString(invitation.id)
+                    ) {
+                        while (it.protocolState.state != CredentialExchangeHolderProtocol.State.CLOSED) {
+                            debugState.issueCredential = it.protocolState
+                            val message = runCatching {
+                                it.receive()
+                            }.onFailure { Log.d(TAG, "exception: ${it.message}") }.getOrNull() ?: break
+                            Log.d(TAG, "received: ${message.type}")
+                            if (!handleIncomingMessage(it, message)) break
+                        }
+                        debugState.issueCredential = it.protocolState.copy()
+                    }
+                }
+            }
+        }
+    }
+
+    // invitation acceptances are only accepted and verified while the corresponding invitation is shown on screen.
+    fun start() {
+        PresentationExchangeHolderProtocol.listen(WsConnection, createUri("0.0.0.0", port = Settings.wsServerPort)) {
+            val activeFragment = mainActivity.supportFragmentManager.fragments.last()
+            val invitation = (activeFragment as? ShowInvitationDialogFragment)?.invitation
+            if (invitation?.id != null && UUID.fromString(invitation.id) == it.protocolState.invitationId) {
+                handleInvitation(it, invitation)
+                while (it.protocolState.state != PresentationExchangeHolderProtocol.State.CLOSED) {
+                    debugState.presentationExchange = it.protocolState
+                    val message = runCatching {
+                        it.receive()
+                    }.onFailure { Log.d(TAG, "exception: ${it.message}") }.getOrNull() ?: break
+                    Log.d(TAG, "received: ${message.type}")
+                    if (!handleIncomingMessage(it, message)) break
+                }
+            }
+            debugState.presentationExchange = it.protocolState.copy()
+        }
+        // endpoint for debugging and demo purposes
+        embeddedServer(CIO, port = Settings.wsServerPort + 1, host = "0.0.0.0", module = Application::module).start()
+    }
+
+    // issue credentials
     private suspend fun handleIncomingMessage(
         protocolInstance: CredentialExchangeHolderProtocol,
         message: LdObject
     ): Boolean {
-        val type = message.type ?: return true //ignore
+        val type = message.type
         return when {
             type.contains("Close") -> false // close connection
             type.contains("CredentialOffer") -> handleCredentialOffer(protocolInstance, message as CredentialOffer)
-            type.contains("CredentialSubmit") -> handleCredentialSubmit(protocolInstance, message as CredentialSubmit)
+            type.contains("CredentialSubmit") -> handleCredentialSubmit(message as CredentialSubmit)
             else -> true //ignore
         }
     }
 
+    // credential issueing start with an offer from the issuer
     private suspend fun handleCredentialOffer(
         protocolInstance: CredentialExchangeHolderProtocol,
         offer: CredentialOffer
@@ -327,6 +335,7 @@ class Controller(val mainActivity: MainActivity) {
         return true
     }
 
+    // user needs to accept offer before sending request
     suspend fun handleCredentialOfferAccepted(
         protocolInstance: CredentialExchangeHolderProtocol
     ) {
@@ -339,8 +348,8 @@ class Controller(val mainActivity: MainActivity) {
         Log.d(TAG, "sent: ${request.type}")
     }
 
+    // holder receives credential in response to his request
     private suspend fun handleCredentialSubmit(
-        protocolInstance: CredentialExchangeHolderProtocol,
         submit: CredentialSubmit
     ): Boolean {
         credentialStore.addCredential(submit.credential)
@@ -352,15 +361,13 @@ class Controller(val mainActivity: MainActivity) {
     }
 
     // presentation exchange
-
     private suspend fun handleIncomingMessage(
         protocolInstance: PresentationExchangeHolderProtocol,
         message: LdObject
     ): Boolean {
-        val type = message.type ?: return true //ignore
+        val type = message.type
         return when {
             type.contains("Close") -> false // close connection
-            type.contains("Invitation") -> handleInvitation(protocolInstance, message as Invitation)
             type.contains("PresentationRequest") -> handlePresentationRequest(
                 protocolInstance,
                 message as PresentationRequest
@@ -370,28 +377,31 @@ class Controller(val mainActivity: MainActivity) {
         }
     }
 
+    // invitation acceptances are answered with a credential offer
     private suspend fun handleInvitation(
         protocolInstance: PresentationExchangeHolderProtocol,
         message: Invitation
     ): Boolean {
-        protocolInstance.sendOffer(
-            PresentationOffer(
-                UUID.randomUUID().toString(),
-                inputDescriptor = Descriptor(
-                    UUID.randomUUID().toString(), Credential(
-                        atContext = Credential.DEFAULT_JSONLD_CONTEXTS + URI("https://w3id.org/vaccination/v1"),
-                        type = when {
-                            message.goal.contains("VaccinationCertificate") -> Credential.DEFAULT_JSONLD_TYPES + "VaccinationCertificate"
-                            message.goal.contains("InsuranceCertificate") -> Credential.DEFAULT_JSONLD_TYPES + "InsuranceCertificate"
-                            else -> Credential.DEFAULT_JSONLD_TYPES
-                        }
-                    )
+        val offer = PresentationOffer(
+            UUID.randomUUID().toString(),
+            inputDescriptor = Descriptor(
+                UUID.randomUUID().toString(), Credential(
+                    atContext = Credential.DEFAULT_JSONLD_CONTEXTS + URI("https://w3id.org/vaccination/v1"),
+                    type = when {
+                        message.goal.contains("VaccinationCertificate") -> Credential.DEFAULT_JSONLD_TYPES + "VaccinationCertificate"
+                        message.goal.contains("InsuranceCertificate") -> Credential.DEFAULT_JSONLD_TYPES + "InsuranceCertificate"
+                        else -> Credential.DEFAULT_JSONLD_TYPES
+                    }
                 )
             )
         )
+        protocolInstance.sendOffer(offer)
+        Log.d(TAG, "sent: ${offer.type}")
         return true
     }
 
+
+    // presentation requests are accepted as response of an offer
     suspend fun handlePresentationRequest(
         protocolInstance: PresentationExchangeHolderProtocol,
         presentationRequest: PresentationRequest
@@ -418,44 +428,49 @@ class Controller(val mainActivity: MainActivity) {
                 verificationMethod = Settings.biometricCredentialHolder.verificationMethod
             )
 
-            protocolInstance.submitPresentation(
-                runCatching {
-                    PresentationSubmit(
-                        UUID.randomUUID().toString(),
-                        presentation = Presentation(
-                            id = UUID.randomUUID().toString(),
-                            verifiableCredential = listOf(
-                                derivedCredential
-                            ),
-                            presentationSubmission = PresentationSubmission(
-                                definitionId = UUID.randomUUID(),
-                                descriptorMap = listOf(
-                                    PresentationSubmission.DescriptorMapEntry(
-                                        id = it.inputDescriptor.id,
-                                        format = ClaimFormat.LDP_VC,
-                                        path = "\$.verifiableCredential[0]"
-                                    )
-                                )
-
+            val presentationSubmit = PresentationSubmit(
+                UUID.randomUUID().toString(),
+                presentation = Presentation(
+                    id = UUID.randomUUID().toString(),
+                    verifiableCredential = listOf(
+                        derivedCredential
+                    ),
+                    presentationSubmission = PresentationSubmission(
+                        definitionId = UUID.randomUUID(),
+                        descriptorMap = listOf(
+                            PresentationSubmission.DescriptorMapEntry(
+                                id = it.inputDescriptor.id,
+                                format = ClaimFormat.LDP_VC,
+                                path = "\$.verifiableCredential[0]"
                             )
+                        )
 
-                        ).apply {
-                            asyncSign(
-                                ldProofHolder,
-                                Settings.biometricCredentialHolder.keyPair.privateKey!!,
-                                mainActivity
-                            )
-                        }
                     )
-                }.onFailure { Toast.makeText(mainActivity, "$it", Toast.LENGTH_LONG).show() }.getOrThrow()
+
+                ).apply {
+                    asyncSign(
+                        ldProofHolder,
+                        Settings.biometricCredentialHolder.keyPair.privateKey!!,
+                        mainActivity
+                    )
+                }
             )
+
+            runCatching {
+            protocolInstance.submitPresentation(presentationSubmit)
+            }.onFailure { Toast.makeText(mainActivity, "$it", Toast.LENGTH_LONG).show() }.getOrThrow()
+            Log.d(TAG, "sent: ${presentationSubmit.type}")
             mainActivity.supportFragmentManager.run {
                 findFragmentByTag("show_invitation")?.let {
                     this.beginTransaction().remove(it).commit()
                 }
 
             }
-            Toast.makeText(mainActivity, "${derivedCredential.type.first { !it.contains("VerifiableCredential") }} sent", Toast.LENGTH_LONG).show()
+            Toast.makeText(
+                mainActivity,
+                "${derivedCredential.type.first { !it.contains("VerifiableCredential") }} sent",
+                Toast.LENGTH_LONG
+            ).show()
             return false
         }
     }
