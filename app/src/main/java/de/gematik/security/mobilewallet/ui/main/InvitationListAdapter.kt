@@ -5,7 +5,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import de.gematik.security.credentialExchangeLib.protocols.Invitation
+import de.gematik.security.credentialExchangeLib.connection.Invitation
 import de.gematik.security.mobilewallet.MainActivity
 import de.gematik.security.mobilewallet.R
 import de.gematik.security.mobilewallet.databinding.InvitationCardBinding

@@ -7,21 +7,16 @@ import android.view.Menu
 import android.view.MenuItem
 import androidx.activity.result.ActivityResultLauncher
 import androidx.appcompat.app.AppCompatActivity
-import androidx.security.crypto.EncryptedFile
-import androidx.security.crypto.MasterKey
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
+import de.gematik.security.credentialExchangeLib.connection.Invitation
 import de.gematik.security.credentialExchangeLib.crypto.CryptoRegistry
 import de.gematik.security.credentialExchangeLib.crypto.ProofType
 import de.gematik.security.credentialExchangeLib.json
-import de.gematik.security.credentialExchangeLib.protocols.Invitation
 import de.gematik.security.mobilewallet.crypto.BiometricSigner
 import de.gematik.security.mobilewallet.ui.main.AboutDialogFragment
 import de.gematik.security.mobilewallet.ui.main.MainPagerFragment
 import de.gematik.security.mobilewallet.ui.main.ShowInvitationDialogFragment
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
 import java.net.URI
 import java.util.*
 

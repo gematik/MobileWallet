@@ -4,9 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
-import de.gematik.security.credentialExchangeLib.protocols.Invitation
-import java.text.SimpleDateFormat
-import java.util.*
+import de.gematik.security.credentialExchangeLib.connection.Invitation
 
 val Invitation.url: String
     get() = "https://my-wallet.me/ssi?oob=${this.toBase64()}"

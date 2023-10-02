@@ -54,8 +54,16 @@ dependencies {
         exclude group: 'net.jcip', module: 'jcip-annotations'
         exclude group: 'ch.qos.logback'
         exclude group: 'com.google.crypto.tink'
-        exclude group: 'org.didcommx'
     }
+
+    implementation ("org.didcommx:didcomm:0.3.3-SNAPSHOT"){
+        exclude group: 'com.google.crypto.tink'
+    }
+    implementation ("org.didcommx:peerdid:0.4.0-SNAPSHOT"){
+        exclude group: 'com.google.crypto.tink'
+    }
+
+
     implementation 'org.slf4j:slf4j-api:2.0.7'
     implementation 'com.github.tony19:logback-android:3.0.0'
 

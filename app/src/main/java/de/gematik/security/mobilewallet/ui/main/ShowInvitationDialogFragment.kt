@@ -5,17 +5,14 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.DialogFragment
+import de.gematik.security.credentialExchangeLib.connection.Invitation
 import de.gematik.security.credentialExchangeLib.protocols.Credential
 import de.gematik.security.credentialExchangeLib.protocols.GoalCode
-import de.gematik.security.credentialExchangeLib.protocols.Invitation
-import de.gematik.security.credentialExchangeLib.protocols.Service
 import de.gematik.security.mobilewallet.MainActivity
 import de.gematik.security.mobilewallet.Settings
+import de.gematik.security.mobilewallet.Settings.from
 import de.gematik.security.mobilewallet.databinding.ShowInvitationDialogFragmentBinding
 import de.gematik.security.mobilewallet.qrCode
-import java.net.Inet4Address
-import java.net.NetworkInterface
-import java.net.URI
 import java.util.*
 
 
@@ -25,7 +22,7 @@ class ShowInvitationDialogFragment : DialogFragment() {
 
     private var credential: Credential? = null
 
-    var invitation : Invitation? = null
+    var invitation: Invitation? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,7 +46,7 @@ class ShowInvitationDialogFragment : DialogFragment() {
         val goalCode = GoalCode.OFFER_PRESENTATION
         binding = ShowInvitationDialogFragmentBinding.inflate(inflater, container, false)
         binding.credential.text = goal
-        invitation = createInvitation(UUID.randomUUID(), label, goal, goalCode)
+        invitation = createInvitation(UUID.randomUUID().toString(), label, goal, goalCode)
         binding.qrcode.setImageBitmap(invitation?.qrCode)
         binding.Decline.setOnClickListener {
             dismiss()
@@ -71,28 +68,13 @@ class ShowInvitationDialogFragment : DialogFragment() {
             }
     }
 
-    private fun createInvitation(invitationId: UUID, label: String, goal: String, goalCode: GoalCode): Invitation {
-        val networkInterface =
-            NetworkInterface.getNetworkInterfaces().toList().first { it.name.lowercase().startsWith("wlan") }
-        val address = networkInterface.inetAddresses.toList().first { it is Inet4Address }
+    private fun createInvitation(invitationId: String, label: String, goal: String, goalCode: GoalCode): Invitation {
         return Invitation(
-            invitationId.toString(),
+            id = invitationId,
             label = label,
             goal = goal,
             goalCode = goalCode,
-            service = listOf(
-                Service(
-                    serviceEndpoint = URI(
-                        "ws",
-                        null,
-                        address.hostAddress,
-                        Settings.wsServerPort,
-                        "/ws",
-                        null,
-                        null
-                    )
-                )
-            )
+            from = from
         )
     }
 }

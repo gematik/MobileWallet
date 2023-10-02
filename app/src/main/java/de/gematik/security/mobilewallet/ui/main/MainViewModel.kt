@@ -2,8 +2,8 @@ package de.gematik.security.mobilewallet.ui.main
 
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import de.gematik.security.credentialExchangeLib.connection.Invitation
 import de.gematik.security.credentialExchangeLib.protocols.Credential
-import de.gematik.security.credentialExchangeLib.protocols.Invitation
 
 class MainViewModel : ViewModel() {
     val invitations = MutableLiveData<ArrayList<Invitation>>()
