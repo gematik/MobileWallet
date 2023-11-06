@@ -263,7 +263,8 @@ class Controller(val mainActivity: MainActivity) {
                     Pair(
                         DidCommV2OverHttpConnection,
                         URI.create(
-                             DIDDocResolverPeerDID.resolve(invitation.from.toString()).get().didCommServices[0].serviceEndpoint
+                            DIDDocResolverPeerDID.resolve(invitation.from.toString())
+                                .get().didCommServices[0].serviceEndpoint
                         )
                     )
                 }
@@ -311,7 +312,7 @@ class Controller(val mainActivity: MainActivity) {
 
     fun start() {
         // invitation acceptances are only accepted and verified while the corresponding invitation is shown on screen.
-        PresentationExchangeHolderProtocol.listen(DidCommV2OverHttpConnection, ownServiceEndpoint){
+        PresentationExchangeHolderProtocol.listen(DidCommV2OverHttpConnection, ownServiceEndpoint) {
             listen(it)
         }
 
@@ -324,7 +325,7 @@ class Controller(val mainActivity: MainActivity) {
         embeddedServer(CIO, port = Settings.wsServerPort + 1, host = "0.0.0.0", module = Application::module).start()
     }
 
-    private suspend fun listen(protocol: PresentationExchangeHolderProtocol){
+    private suspend fun listen(protocol: PresentationExchangeHolderProtocol) {
         val activeFragment = mainActivity.supportFragmentManager.fragments.last()
         val invitation = (activeFragment as? ShowInvitationDialogFragment)?.invitation
         if (invitation?.id != null && invitation.id == protocol.protocolState.invitationId) {
@@ -340,7 +341,6 @@ class Controller(val mainActivity: MainActivity) {
         }
         debugState.presentationExchange = protocol.protocolState.copy()
     }
-
 
 
     // issue credentials
@@ -421,15 +421,19 @@ class Controller(val mainActivity: MainActivity) {
         val offer = PresentationOffer(
             UUID.randomUUID().toString(),
             inputDescriptor = Descriptor(
-                UUID.randomUUID().toString(),
-                Credential(
-                    atContext = Credential.DEFAULT_JSONLD_CONTEXTS + URI("https://w3id.org/vaccination/v1"),
-                    type = when {
-                        message.goal?.contains("VaccinationCertificate") == true -> Credential.DEFAULT_JSONLD_TYPES + "VaccinationCertificate"
-                        message.goal?.contains("InsuranceCertificate") == true -> Credential.DEFAULT_JSONLD_TYPES + "InsuranceCertificate"
-                        else -> Credential.DEFAULT_JSONLD_TYPES
-                    }
-                )
+                id = UUID.randomUUID().toString(),
+                frame = when {
+                    message.goal?.contains("VaccinationCertificate") == true -> Credential(
+                        atContext = Credential.DEFAULT_JSONLD_CONTEXTS + URI("https://w3id.org/vaccination/v1"),
+                        type = Credential.DEFAULT_JSONLD_TYPES + "VaccinationCertificate"
+                    )
+
+                    message.goal?.contains("InsuranceCertificate") == true -> Credential(
+                        atContext = Credential.DEFAULT_JSONLD_CONTEXTS + URI("https://gematik.de/vsd/v1"),
+                        type = Credential.DEFAULT_JSONLD_TYPES + "InsuranceCertificate"
+                    )
+                    else -> Credential()
+                }
             )
         )
         protocolInstance.sendOffer(offer)
