@@ -420,21 +420,39 @@ class Controller(val mainActivity: MainActivity) {
     ): Boolean {
         val offer = PresentationOffer(
             UUID.randomUUID().toString(),
-            inputDescriptor = Descriptor(
-                id = UUID.randomUUID().toString(),
-                frame = when {
-                    message.goal?.contains("VaccinationCertificate") == true -> Credential(
-                        atContext = Credential.DEFAULT_JSONLD_CONTEXTS + URI("https://w3id.org/vaccination/v1"),
-                        type = Credential.DEFAULT_JSONLD_TYPES + "VaccinationCertificate"
-                    )
+            inputDescriptor = when {
+                message.goal?.contains("VaccinationCertificate") == true -> listOf( // vaccination + identity
+                    Descriptor(
+                        id = UUID.randomUUID().toString(),
+                        frame = Credential(
+                            atContext = Credential.DEFAULT_JSONLD_CONTEXTS + URI("https://w3id.org/vaccination/v1"),
+                            type = Credential.DEFAULT_JSONLD_TYPES + "VaccinationCertificate"
+                        )
+                    ),
+                    Descriptor(
+                        id = UUID.randomUUID().toString(),
+                        Credential(
+                            atContext = Credential.DEFAULT_JSONLD_CONTEXTS + URI("https://gematik.de/vsd/v1"),
+                            type = Credential.DEFAULT_JSONLD_TYPES + "InsuranceCertificate"
+                        )
 
-                    message.goal?.contains("InsuranceCertificate") == true -> Credential(
-                        atContext = Credential.DEFAULT_JSONLD_CONTEXTS + URI("https://gematik.de/vsd/v1"),
-                        type = Credential.DEFAULT_JSONLD_TYPES + "InsuranceCertificate"
                     )
-                    else -> Credential()
-                }
-            )
+                )
+
+                message.goal?.contains("InsuranceCertificate") == true -> listOf( // complete insurance info
+                    Descriptor(
+                        id = UUID.randomUUID().toString(),
+                        Credential(
+                            atContext = Credential.DEFAULT_JSONLD_CONTEXTS + URI("https://gematik.de/vsd/v1"),
+                            type = Credential.DEFAULT_JSONLD_TYPES + "InsuranceCertificate"
+                        )
+
+                    )
+                )
+
+                else -> listOf()
+            }
+
         )
         protocolInstance.sendOffer(offer)
         Log.d(TAG, "sent: ${offer.type}")
@@ -448,17 +466,36 @@ class Controller(val mainActivity: MainActivity) {
         presentationRequest: PresentationRequest
     ): Boolean {
         presentationRequest.let {
-            val credentials = credentialStore.filterCredentials(it.inputDescriptor.frame)
-            if (credentials.isEmpty()) {
-                Toast.makeText(mainActivity, "No sufficient credential found!", Toast.LENGTH_LONG).show()
-                return false
-            }
-            // pick credential - we pick the first credential without user interaction
-            val derivedCredential =
-                credentialStore.getCredential(credentials.get(0))?.value?.derive(it.inputDescriptor.frame)
-            if (derivedCredential == null) {
-                Toast.makeText(mainActivity, "Could not derive credential!", Toast.LENGTH_LONG).show()
-                return false
+            val presentation = Presentation(
+                id = UUID.randomUUID().toString(),
+                verifiableCredential = mutableListOf(),
+                presentationSubmission = PresentationSubmission(
+                    definitionId = UUID.randomUUID(),
+                    descriptorMap = mutableListOf()
+                )
+            )
+            it.inputDescriptor.forEachIndexed { index, descriptor ->
+                val credentials = credentialStore.filterCredentials(descriptor.frame)
+                if (credentials.isEmpty()) {
+                    Toast.makeText(mainActivity, "No sufficient credential found!", Toast.LENGTH_LONG).show()
+                    return false
+                }
+                // pick credential - we pick the first suitable credential without user interaction
+                val derivedCredential =
+                    credentialStore.getCredential(credentials.get(0))?.value?.derive(descriptor.frame)
+                if (derivedCredential == null) {
+                    Toast.makeText(mainActivity, "Could not derive credential!", Toast.LENGTH_LONG).show()
+                    return false
+                }
+                (presentation.verifiableCredential as MutableList).add(index, derivedCredential)
+                (presentation.presentationSubmission.descriptorMap as MutableList).add(
+                    index,
+                    PresentationSubmission.DescriptorMapEntry(
+                        id = descriptor.id,
+                        format = ClaimFormat.LDP_VC,
+                        path = "\$.verifiableCredential[$index]"
+                    )
+                )
             }
             val ldProofHolder = LdProof(
                 atContext = listOf(URI("https://www.w3.org/2018/credentials/v1")),
@@ -471,24 +508,7 @@ class Controller(val mainActivity: MainActivity) {
 
             val presentationSubmit = PresentationSubmit(
                 UUID.randomUUID().toString(),
-                presentation = Presentation(
-                    id = UUID.randomUUID().toString(),
-                    verifiableCredential = listOf(
-                        derivedCredential
-                    ),
-                    presentationSubmission = PresentationSubmission(
-                        definitionId = UUID.randomUUID(),
-                        descriptorMap = listOf(
-                            PresentationSubmission.DescriptorMapEntry(
-                                id = it.inputDescriptor.id,
-                                format = ClaimFormat.LDP_VC,
-                                path = "\$.verifiableCredential[0]"
-                            )
-                        )
-
-                    )
-
-                ).apply {
+                presentation = presentation.apply {
                     asyncSign(
                         ldProofHolder,
                         Settings.biometricCredentialHolder.keyPair.privateKey!!,
@@ -509,7 +529,7 @@ class Controller(val mainActivity: MainActivity) {
             }
             Toast.makeText(
                 mainActivity,
-                "${derivedCredential.type.first { !it.contains("VerifiableCredential") }} sent",
+                "${presentation.verifiableCredential.size} credential${if(presentation.verifiableCredential.size >1) "s" else ""} sent",
                 Toast.LENGTH_LONG
             ).show()
             return false

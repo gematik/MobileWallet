@@ -41,24 +41,36 @@ class BiometricCryptoCredentials(keyPair: KeyPair) : EcdsaCryptoCredentials(keyP
                 }.genKeyPair()
 
             return KeyPair(keystoreAlias.toByteArray(), javaSecurityKeyPair.public.encoded.let {
-                ByteArray(33).apply {
-                    this[0] = if (it[it.size - 1] % 2 == 0) 2.toByte() else 3.toByte()
-                    it.copyInto(this, 1, it.size - 64, it.size - 32)
-                }
+                convertPrimaryCodedPublicKeyToCompressedPublicKey(it)
             })
         }
+
+        fun getKeyPair(keystoreAlias: String): KeyPair? {
+            return (keyStore.getCertificateChain(keystoreAlias)?.firstOrNull() as? X509Certificate)?.publicKey?.encoded?.let {
+                KeyPair(
+                    keystoreAlias.toByteArray(),
+                    convertPrimaryCodedPublicKeyToCompressedPublicKey(it)
+                )
+            }
+        }
+
+        private fun convertPrimaryCodedPublicKeyToCompressedPublicKey(primaryCodedPublicKey: ByteArray): ByteArray {
+            return ByteArray(33).apply {
+                this[0] = if (primaryCodedPublicKey[primaryCodedPublicKey.size - 1] % 2 == 0) 2.toByte() else 3.toByte()
+                primaryCodedPublicKey.copyInto(
+                    this,
+                    1,
+                    primaryCodedPublicKey.size - 64,
+                    primaryCodedPublicKey.size - 32
+                )
+            }
+        }
+
     }
 
-    override
-    val didKey: URI
-
-    override
-    val verificationMethod: URI
+    override val didKey: URI
+    override val verificationMethod: URI
     val certificateChain = keyPair.publicKey?.let { keyStore.getCertificateChain(String(it)) }
-    val publicKey =
-        (keyStore.getCertificateChain(String(keyPair.privateKey!!))
-            .first() as? X509Certificate)?.publicKey?.encoded
-
 
     init {
         require(keyPair.privateKey != null)

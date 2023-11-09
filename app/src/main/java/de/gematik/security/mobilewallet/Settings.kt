@@ -34,8 +34,10 @@ object Settings {
         )
     )
 
+    val keyStoreAlias = "MobileWallet2KeyStoreAlias"
+
     val biometricCredentialHolder = BiometricCryptoCredentials(
-        BiometricCryptoCredentials.createKeyPair(UUID.randomUUID().toString())
+        BiometricCryptoCredentials.getKeyPair(keyStoreAlias) ?: BiometricCryptoCredentials.createKeyPair(keyStoreAlias)
     )
 
     val label = "Mobile Wallet 2"
