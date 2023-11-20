@@ -2,6 +2,8 @@ package de.gematik.security.mobilewallet
 
 import android.content.Intent
 import android.net.Uri
+import android.nfc.NdefMessage
+import android.nfc.NfcAdapter
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
@@ -39,16 +41,16 @@ class MainActivity : AppCompatActivity() {
         }
 
         // register biometric signer
-        CryptoRegistry.registerSigner(ProofType.EcdsaSecp256r1Signature2019){
+        CryptoRegistry.registerSigner(ProofType.EcdsaSecp256r1Signature2019) {
             BiometricSigner(it)
         }
 
         // scan qr code
         qrCodeScannerLauncher = registerForActivityResult(ScanContract())
         {
-            it.contents?.let {contents ->
+            it.contents?.let { contents ->
                 val oob = URI.create(contents).query?.substringAfter("oob=", "")?.substringBefore("&")
-                if (oob?.isNotEmpty()==true) {
+                if (oob?.isNotEmpty() == true) {
                     val invitation = json.decodeFromString<Invitation>(String(Base64.getDecoder().decode(oob)))
                     controller.acceptInvitation(invitation)
                 }
@@ -77,10 +79,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
-        if (intent?.action == Intent.ACTION_VIEW && intent.data != null) {
-            val oob = (intent.data as Uri).getQueryParameter("oob")
-            controller.acceptInvitation(json.decodeFromString<Invitation>(String(Base64.getDecoder().decode(oob))))
-        }
+        when (intent?.action) {
+            Intent.ACTION_VIEW -> (intent.data as Uri).getQueryParameter("oob")
+            NfcAdapter.ACTION_NDEF_DISCOVERED -> {
+                (intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES)?.get(0) as NdefMessage)
+                    .getRecords()[0].toUri()
+                    .getQueryParameter("oob")
+            }
+            else -> null
+        }?.let{ oob -> controller.acceptInvitation(json.decodeFromString<Invitation>(String(Base64.getDecoder().decode(oob))))}
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -102,11 +109,13 @@ class MainActivity : AppCompatActivity() {
                 AboutDialogFragment().show(supportFragmentManager, "AboutDialog")
                 true
             }
+
             R.id.invitation -> {
                 ShowInvitationDialogFragment.newInstance(null)
                     .show(supportFragmentManager, "show_invitation")
                 true
             }
+
             else -> false
         }
     }
