@@ -280,15 +280,15 @@ class Controller(val mainActivity: MainActivity) {
                     to = createUri(serviceEndpoint.host, serviceEndpoint.port),
                     invitationId = invitation.id
                 ) {
+                    debugState.presentationExchangeInvitation = invitation
+                    debugState.presentationExchange = it.protocolState
                     while (it.protocolState.state != PresentationExchangeHolderProtocol.State.CLOSED) {
-                        debugState.presentationExchange = it.protocolState
                         val message = runCatching {
                             it.receive()
                         }.onFailure { Log.d(TAG, "exception: ${it.message}") }.getOrNull() ?: break
                         Log.d(TAG, "received: ${message.type}")
                         if (!handleIncomingMessage(it, message)) break
                     }
-                    debugState.presentationExchange = it.protocolState.copy()
                 }
 
                 else -> CredentialExchangeHolderProtocol.connect(
@@ -296,15 +296,15 @@ class Controller(val mainActivity: MainActivity) {
                     to = createUri(serviceEndpoint.host, serviceEndpoint.port),
                     invitationId = invitation.id
                 ) {
+                    debugState.issueCredentialInvitation = invitation
+                    debugState.issueCredential = it.protocolState
                     while (it.protocolState.state != CredentialExchangeHolderProtocol.State.CLOSED) {
-                        debugState.issueCredential = it.protocolState
                         val message = runCatching {
                             it.receive()
                         }.onFailure { Log.d(TAG, "exception: ${it.message}") }.getOrNull() ?: break
                         Log.d(TAG, "received: ${message.type}")
                         if (!handleIncomingMessage(it, message)) break
                     }
-                    debugState.issueCredential = it.protocolState.copy()
                 }
             }
         }
@@ -329,9 +329,10 @@ class Controller(val mainActivity: MainActivity) {
         val activeFragment = mainActivity.supportFragmentManager.fragments.last()
         val invitation = (activeFragment as? ShowInvitationDialogFragment)?.invitation
         if (invitation?.id != null && invitation.id == protocol.protocolState.invitationId) {
+            debugState.presentationExchangeInvitation = invitation
+            debugState.presentationExchange = protocol.protocolState
             handleInvitation(protocol, invitation)
             while (protocol.protocolState.state != PresentationExchangeHolderProtocol.State.CLOSED) {
-                debugState.presentationExchange = protocol.protocolState
                 val message = runCatching {
                     protocol.receive()
                 }.onFailure { Log.d(TAG, "exception: ${it.message}") }.getOrNull() ?: break
@@ -339,7 +340,6 @@ class Controller(val mainActivity: MainActivity) {
                 if (!handleIncomingMessage(protocol, message)) break
             }
         }
-        debugState.presentationExchange = protocol.protocolState.copy()
     }
 
 
@@ -541,7 +541,9 @@ class Controller(val mainActivity: MainActivity) {
 
 @Serializable
 data class DebugState(
+    var issueCredentialInvitation: Invitation? = null,
     var issueCredential: CredentialExchangeHolderProtocol.ProtocolState? = null,
+    var presentationExchangeInvitation: Invitation? = null,
     var presentationExchange: PresentationExchangeHolderProtocol.ProtocolState? = null
 )
 
