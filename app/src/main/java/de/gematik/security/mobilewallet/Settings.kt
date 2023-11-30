@@ -12,20 +12,27 @@ import java.util.*
 
 object Settings {
     val wsServerPort = 9090
-    val localEndpoint = URI("ws", null, "0.0.0.0", wsServerPort, "/ws", null, null)
-    val didCommServerPort = wsServerPort + 5
 
-    val networkInterface =
-        NetworkInterface.getNetworkInterfaces().toList().first { it.name.lowercase().startsWith("wlan") }
-    val address = networkInterface.inetAddresses.toList().first { it is Inet4Address }
-    val ownServiceEndpoint = URI("http", null, address.hostAddress, didCommServerPort, "/didcomm", null, null)
+    val localEndpoint = URI("ws", null, "0.0.0.0", wsServerPort, "/ws", null, null)
+
+    val ownServiceEndpoint = URI(
+        "http",
+        null,
+        NetworkInterface.getNetworkInterfaces()
+            .toList().first { it.name.lowercase().startsWith("wlan") }
+            .inetAddresses.toList().first { it is Inet4Address }
+            .hostAddress,
+        wsServerPort + 5,
+        "/didcomm",
+        null,
+        null
+    )
+
     val ownDid = URI.create(
         createPeerDID(
             serviceEndpoint = ownServiceEndpoint.toString()
         )
     )
-
-    val from = ownDid
 
     val credentialHolder = P256CryptoCredentials(
         KeyPair(

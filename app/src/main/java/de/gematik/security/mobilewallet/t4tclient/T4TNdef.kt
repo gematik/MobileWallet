@@ -1,0 +1,115 @@
+package de.gematik.security.mobilewallet.t4tclient
+
+import android.nfc.NdefMessage
+import android.nfc.Tag
+import android.nfc.tech.IsoDep
+import android.util.Log
+import de.gematik.security.credentialExchangeLib.extensions.toHex
+import java.math.BigInteger
+import java.nio.ByteBuffer
+
+class T4TNdef(tag: Tag) {
+
+    private val TAG = "T4TNdef"
+
+    val ok = byteArrayOf(
+        0x90.toByte(), //SW1
+        0x00.toByte()  //SW2
+    )
+
+    val ndefTagAppAid = byteArrayOf(
+        0xD2.toByte(), 0x76.toByte(), 0x00.toByte(), 0x00.toByte(),
+        0x85.toByte(), 0x01.toByte(), 0x01.toByte()
+    )
+    val ccFileId = byteArrayOf(0xE1.toByte(), 0x03.toByte())
+
+    val isoDep: IsoDep = IsoDep.get(tag)
+
+    suspend fun getNdefMessage(): NdefMessage? {
+        return runCatching {
+            // connect
+            isoDep.connect()
+            isoDep.timeout = 5000
+            // select NDEF TAG application
+            selectApp(ndefTagAppAid)
+            // select capability container file
+            selectFile(ccFileId)
+            // read NDEF File ID from capability container file
+            val ndefFileId = readBinary(9, 2)
+            // select NDEF File
+            selectFile(ndefFileId)
+            // read NDEF file length from file offset 0 (NDEF message length + 2)
+            val ndefFileLength = BigInteger(1, readBinary(0, 2)).toInt() + 2
+            // read NDEF message from file offset 2 to end of file
+            NdefMessage(ByteBuffer.wrap(ByteArray(ndefFileLength - 2)).apply {
+                var offset = 2
+                while (offset < ndefFileLength - 255) {
+                    put(readBinary(offset, 255))
+                    offset += 255
+                }
+                put(readBinary(offset, ndefFileLength - offset))
+            }.array())
+        }.onFailure { Log.d(TAG, "failure reading tag: ${it.message}") }.getOrNull()
+    }
+
+    private fun selectApp(aid: ByteArray) {
+        check(aid.size == 7) { "incorrect aid size: expected 7 but was ${aid.size}" }
+        (byteArrayOf(
+            // select APP
+            0x00.toByte(),
+            0xA4.toByte(),
+            0x04.toByte(),
+            0x00.toByte(),
+            0x07.toByte()
+        ) + aid + 0x00.toByte()
+                ).let { commandApdu ->
+                isoDep.transceive(commandApdu).let {
+                    Log.i(TAG, "sent: ${commandApdu.toHex()}")
+                    check(it.contentEquals(ok))
+                    Log.i(TAG, "received: ${it.toHex()}")
+                }
+            }
+    }
+
+    private fun selectFile(fid: ByteArray) {
+        check(fid.size == 2) { "incorrect fid size: expected 2 but was ${fid.size}" }
+        (byteArrayOf(
+            // select CC file
+            0x00.toByte(),
+            0xA4.toByte(),
+            0x00.toByte(),
+            0x0C.toByte(),
+            0x02.toByte(),
+        ) +
+                fid).let { commandApdu ->
+            isoDep.transceive(commandApdu).let {
+                Log.i(TAG, "sent: ${commandApdu.toHex()}")
+                check(it.contentEquals(ok))
+                Log.i(TAG, "received: ${it.toHex()}")
+            }
+        }
+
+    }
+
+    private fun readBinary(offset: Int, length: Int): ByteArray {
+        check(offset < 0xffff) { "invalid offset: $offset" }
+        check(length <= 255) { "invalid length: $length" }
+        return (byteArrayOf(
+            0x00.toByte(), // CLA CLASS
+            0xB0.toByte(), // INS READ_BINARY
+        ) +
+                offset.shr(8).toByte() +
+                (offset % 0x100).toByte() +
+                length.toByte()
+                ).let { commandApdu ->
+                isoDep.transceive(commandApdu).let {
+                    Log.i(TAG, "sent: ${commandApdu.toHex()}")
+                    Log.i(TAG, "received: ${it.toHex()}")
+                    it.sliceArray(it.size - 2..it.size - 1).let{
+                        check(it.contentEquals(ok)){"unexpected response: ${it.toHex()}"}
+                    }
+                    it.sliceArray(0..it.size - 3)
+                }
+            }
+    }
+}

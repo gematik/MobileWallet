@@ -4,11 +4,13 @@ import android.content.Intent
 import android.net.Uri
 import android.nfc.NdefMessage
 import android.nfc.NfcAdapter
+import android.nfc.Tag
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import androidx.activity.result.ActivityResultLauncher
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import de.gematik.security.credentialExchangeLib.connection.Invitation
@@ -16,9 +18,12 @@ import de.gematik.security.credentialExchangeLib.crypto.CryptoRegistry
 import de.gematik.security.credentialExchangeLib.crypto.ProofType
 import de.gematik.security.credentialExchangeLib.json
 import de.gematik.security.mobilewallet.crypto.BiometricSigner
+import de.gematik.security.mobilewallet.t4tclient.T4TNdef
 import de.gematik.security.mobilewallet.ui.main.AboutDialogFragment
 import de.gematik.security.mobilewallet.ui.main.MainPagerFragment
 import de.gematik.security.mobilewallet.ui.main.ShowInvitationDialogFragment
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import java.net.URI
 import java.util.*
 
@@ -63,7 +68,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         // deep link clicked
-        handleIntent(intent)
+        lifecycleScope.launch { handleIntent(intent) }
     }
 
     override fun onPause() {
@@ -75,10 +80,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
-        handleIntent(intent)
+        lifecycleScope.launch { handleIntent(intent) }
     }
 
-    private fun handleIntent(intent: Intent?) {
+    suspend private fun handleIntent(intent: Intent?) {
         when (intent?.action) {
             Intent.ACTION_VIEW -> (intent.data as Uri).getQueryParameter("oob")
             NfcAdapter.ACTION_NDEF_DISCOVERED -> {
@@ -86,8 +91,25 @@ class MainActivity : AppCompatActivity() {
                     .getRecords()[0].toUri()
                     .getQueryParameter("oob")
             }
+
+            NfcAdapter.ACTION_TECH_DISCOVERED -> {
+                intent.getParcelableExtra<Tag>(NfcAdapter.EXTRA_TAG)?.let {
+                    lifecycleScope.async {
+                        T4TNdef(it).getNdefMessage()
+                    }.await()?.records?.get(0)?.toUri()?.getQueryParameter("oob")
+                }
+            }
+
             else -> null
-        }?.let{ oob -> controller.acceptInvitation(json.decodeFromString<Invitation>(String(Base64.getDecoder().decode(oob))))}
+        }?.let { oob ->
+            controller.acceptInvitation(
+                json.decodeFromString<Invitation>(
+                    String(
+                        Base64.getDecoder().decode(oob)
+                    )
+                )
+            )
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {

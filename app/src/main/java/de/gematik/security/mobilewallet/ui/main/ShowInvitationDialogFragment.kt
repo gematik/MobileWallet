@@ -10,7 +10,7 @@ import de.gematik.security.credentialExchangeLib.protocols.Credential
 import de.gematik.security.credentialExchangeLib.protocols.GoalCode
 import de.gematik.security.mobilewallet.MainActivity
 import de.gematik.security.mobilewallet.Settings
-import de.gematik.security.mobilewallet.Settings.from
+import de.gematik.security.mobilewallet.Settings.ownDid
 import de.gematik.security.mobilewallet.databinding.ShowInvitationDialogFragmentBinding
 import de.gematik.security.mobilewallet.qrCode
 import java.util.*
@@ -74,7 +74,7 @@ class ShowInvitationDialogFragment : DialogFragment() {
             label = label,
             goal = goal,
             goalCode = goalCode,
-            from = from
+            from = ownDid
         )
     }
 }

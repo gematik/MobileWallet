@@ -20,6 +20,7 @@ import de.gematik.security.credentialExchangeLib.extensions.toJsonDocument
 import de.gematik.security.credentialExchangeLib.json
 import de.gematik.security.credentialExchangeLib.protocols.*
 import de.gematik.security.mobilewallet.Settings.localEndpoint
+import de.gematik.security.mobilewallet.Settings.ownDid
 import de.gematik.security.mobilewallet.Settings.ownServiceEndpoint
 import de.gematik.security.mobilewallet.ui.main.CREDENTIALS_PAGE_ID
 import de.gematik.security.mobilewallet.ui.main.CredentialOfferDialogFragment
@@ -247,25 +248,28 @@ class Controller(val mainActivity: MainActivity) {
     }
 
     // protocol etstablishment
-    // invitations are accepted by scanning or clicking an QR-code. Further processing depends on goal code.
+    // invitations are received by
+    // a) scanning an QR-code,
+    // b) clicking an QR-code or
+    // c) tapping an NFC tag.
+    // Further processing depends on goal code.
     fun acceptInvitation(invitation: Invitation) {
         mainActivity.lifecycleScope.launch(CoroutineName("")) {
             invitationStore.addInvitation(invitation)
-            val (connectionFactory, serviceEndpoint) = when (invitation.from.scheme) {
+            val (connectionFactory, to, from) = when (invitation.from.scheme) {
                 "ws", "wss" -> {
-                    Pair(
+                    Triple(
                         WsConnection,
-                        invitation.from
+                        invitation.from,
+                        null
                     )
                 }
 
                 "did" -> {
-                    Pair(
+                    Triple(
                         DidCommV2OverHttpConnection,
-                        URI.create(
-                            DIDDocResolverPeerDID.resolve(invitation.from.toString())
-                                .get().didCommServices[0].serviceEndpoint
-                        )
+                        invitation.from,
+                        ownDid
                     )
                 }
 
@@ -273,11 +277,12 @@ class Controller(val mainActivity: MainActivity) {
                     throw InvalidParameterException("unsupported URI scheme: ${invitation.from.scheme}")
                 }
             }
-            Log.d(TAG, "invitation accepted from ${serviceEndpoint.host}:${serviceEndpoint.port}")
+            Log.d(TAG, "invitation received from $to")
             when (invitation.goalCode) {
                 GoalCode.REQUEST_PRESENTATION -> PresentationExchangeHolderProtocol.connect(
                     connectionFactory,
-                    to = createUri(serviceEndpoint.host, serviceEndpoint.port),
+                    to = to,
+                    from = from,
                     invitationId = invitation.id
                 ) {
                     debugState.presentationExchangeInvitation = invitation
@@ -291,9 +296,28 @@ class Controller(val mainActivity: MainActivity) {
                     }
                 }
 
+                GoalCode.OFFER_PRESENTATION -> PresentationExchangeHolderProtocol.connect(
+                    connectionFactory,
+                    to = to,
+                    from = from,
+                    invitationId = invitation.id
+                ) {
+                    debugState.presentationExchangeInvitation = invitation
+                    debugState.presentationExchange = it.protocolState
+                    handleInvitation(it, invitation)
+                    while (it.protocolState.state != PresentationExchangeHolderProtocol.State.CLOSED) {
+                        val message = runCatching {
+                            it.receive()
+                        }.onFailure { Log.d(TAG, "exception: ${it.message}") }.getOrNull() ?: break
+                        Log.d(TAG, "received: ${message.type}")
+                        if (!handleIncomingMessage(it, message)) break
+                    }
+                }
+
                 else -> CredentialExchangeHolderProtocol.connect(
                     connectionFactory,
-                    to = createUri(serviceEndpoint.host, serviceEndpoint.port),
+                    to = to,
+                    from = from,
                     invitationId = invitation.id
                 ) {
                     debugState.issueCredentialInvitation = invitation
@@ -311,7 +335,7 @@ class Controller(val mainActivity: MainActivity) {
     }
 
     fun start() {
-        // invitation acceptances are only accepted and verified while the corresponding invitation is shown on screen.
+        // start didcomm listener
         PresentationExchangeHolderProtocol.listen(DidCommV2OverHttpConnection, ownServiceEndpoint) {
             listen(it)
         }
@@ -326,6 +350,8 @@ class Controller(val mainActivity: MainActivity) {
     }
 
     private suspend fun listen(protocol: PresentationExchangeHolderProtocol) {
+        // invitation accept messages are only accepted when corresponding invitation is shown on screen.
+        // invitation id of received invitation is hold in protocolState
         val activeFragment = mainActivity.supportFragmentManager.fragments.last()
         val invitation = (activeFragment as? ShowInvitationDialogFragment)?.invitation
         if (invitation?.id != null && invitation.id == protocol.protocolState.invitationId) {
@@ -339,6 +365,8 @@ class Controller(val mainActivity: MainActivity) {
                 Log.d(TAG, "received: ${message.type}")
                 if (!handleIncomingMessage(protocol, message)) break
             }
+        }else{
+            Log.d(TAG, "invitation ignored due to missing or wrong invitation id")
         }
     }
 
