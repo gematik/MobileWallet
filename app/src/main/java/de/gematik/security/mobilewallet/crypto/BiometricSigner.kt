@@ -1,7 +1,6 @@
 package de.gematik.security.mobilewallet.crypto
 
 import android.util.Log
-import android.widget.Toast
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
@@ -20,7 +19,7 @@ import java.security.Signature
 import java.security.SignatureException
 
 class BiometricSigner(keyPair: KeyPair) : Signer, AsyncSigner {
-    private val tag = BiometricSigner::class.simpleName
+    private val tag = BiometricSigner::class.java.name
 
     override val keyPair: KeyPair
     val cryptoObject: BiometricPrompt.CryptoObject

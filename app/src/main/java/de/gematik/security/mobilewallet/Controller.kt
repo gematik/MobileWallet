@@ -8,13 +8,11 @@ import androidx.security.crypto.EncryptedFile
 import androidx.security.crypto.MasterKey
 import androidx.viewpager2.widget.ViewPager2
 import com.apicatalog.jsonld.JsonLd
-import de.gematik.security.credentialExchangeLib.connection.DidCommV2OverHttp.DIDDocResolverPeerDID
 import de.gematik.security.credentialExchangeLib.connection.DidCommV2OverHttp.DidCommV2OverHttpConnection
 import de.gematik.security.credentialExchangeLib.connection.Invitation
 import de.gematik.security.credentialExchangeLib.connection.websocket.WsConnection
 import de.gematik.security.credentialExchangeLib.crypto.ProofType
 import de.gematik.security.credentialExchangeLib.defaultJsonLdOptions
-import de.gematik.security.credentialExchangeLib.extensions.createUri
 import de.gematik.security.credentialExchangeLib.extensions.deepCopy
 import de.gematik.security.credentialExchangeLib.extensions.toJsonDocument
 import de.gematik.security.credentialExchangeLib.json
@@ -52,7 +50,7 @@ import java.util.*
  */
 
 class Controller(val mainActivity: MainActivity) {
-    val TAG = Controller::class.java.name
+    private val tag = Controller::class.java.name
 
     val viewModel by mainActivity.viewModels<MainViewModel>()
 
@@ -277,7 +275,7 @@ class Controller(val mainActivity: MainActivity) {
                     throw InvalidParameterException("unsupported URI scheme: ${invitation.from.scheme}")
                 }
             }
-            Log.d(TAG, "invitation received from $to")
+            Log.i(tag, "invitation received from $to")
             when (invitation.goalCode) {
                 GoalCode.REQUEST_PRESENTATION -> PresentationExchangeHolderProtocol.connect(
                     connectionFactory,
@@ -290,8 +288,8 @@ class Controller(val mainActivity: MainActivity) {
                     while (it.protocolState.state != PresentationExchangeHolderProtocol.State.CLOSED) {
                         val message = runCatching {
                             it.receive()
-                        }.onFailure { Log.d(TAG, "exception: ${it.message}") }.getOrNull() ?: break
-                        Log.d(TAG, "received: ${message.type}")
+                        }.onFailure { Log.e(tag, "exception: ${it.message}") }.getOrNull() ?: break
+                        Log.i(tag, "received: ${message.type}")
                         if (!handleIncomingMessage(it, message)) break
                     }
                 }
@@ -308,8 +306,8 @@ class Controller(val mainActivity: MainActivity) {
                     while (it.protocolState.state != PresentationExchangeHolderProtocol.State.CLOSED) {
                         val message = runCatching {
                             it.receive()
-                        }.onFailure { Log.d(TAG, "exception: ${it.message}") }.getOrNull() ?: break
-                        Log.d(TAG, "received: ${message.type}")
+                        }.onFailure { Log.e(tag, "exception: ${it.message}") }.getOrNull() ?: break
+                        Log.i(tag, "received: ${message.type}")
                         if (!handleIncomingMessage(it, message)) break
                     }
                 }
@@ -325,8 +323,8 @@ class Controller(val mainActivity: MainActivity) {
                     while (it.protocolState.state != CredentialExchangeHolderProtocol.State.CLOSED) {
                         val message = runCatching {
                             it.receive()
-                        }.onFailure { Log.d(TAG, "exception: ${it.message}") }.getOrNull() ?: break
-                        Log.d(TAG, "received: ${message.type}")
+                        }.onFailure { Log.e(tag, "exception: ${it.message}") }.getOrNull() ?: break
+                        Log.i(tag, "received: ${message.type}")
                         if (!handleIncomingMessage(it, message)) break
                     }
                 }
@@ -361,12 +359,12 @@ class Controller(val mainActivity: MainActivity) {
             while (protocol.protocolState.state != PresentationExchangeHolderProtocol.State.CLOSED) {
                 val message = runCatching {
                     protocol.receive()
-                }.onFailure { Log.d(TAG, "exception: ${it.message}") }.getOrNull() ?: break
-                Log.d(TAG, "received: ${message.type}")
+                }.onFailure { Log.e(tag, "exception: ${it.message}") }.getOrNull() ?: break
+                Log.i(tag, "received: ${message.type}")
                 if (!handleIncomingMessage(protocol, message)) break
             }
         }else{
-            Log.d(TAG, "invitation ignored due to missing or wrong invitation id")
+            Log.i(tag, "invitation ignored due to missing or wrong invitation id")
         }
     }
 
@@ -409,7 +407,7 @@ class Controller(val mainActivity: MainActivity) {
             holderKey = Settings.biometricCredentialHolder.didKey
         )
         protocolInstance.requestCredential(request)
-        Log.d(TAG, "sent: ${request.type}")
+        Log.i(tag, "sent: ${request.type}")
     }
 
     // holder receives credential in response to his request
@@ -417,7 +415,7 @@ class Controller(val mainActivity: MainActivity) {
         submit: CredentialSubmit
     ): Boolean {
         credentialStore.addCredential(submit.credential)
-        Log.d(TAG, "stored: ${submit.credential.type}}")
+        Log.i(tag, "stored: ${submit.credential.type}}")
         withContext(Dispatchers.Main) {
             mainActivity.findViewById<ViewPager2>(R.id.view_pager)?.currentItem = CREDENTIALS_PAGE_ID
         }
@@ -483,7 +481,7 @@ class Controller(val mainActivity: MainActivity) {
 
         )
         protocolInstance.sendOffer(offer)
-        Log.d(TAG, "sent: ${offer.type}")
+        Log.i(tag, "sent: ${offer.type}")
         return true
     }
 
@@ -548,7 +546,7 @@ class Controller(val mainActivity: MainActivity) {
             runCatching {
                 protocolInstance.submitPresentation(presentationSubmit)
             }.onFailure { Toast.makeText(mainActivity, "$it", Toast.LENGTH_LONG).show() }.getOrThrow()
-            Log.d(TAG, "sent: ${presentationSubmit.type}")
+            Log.i(tag, "sent: ${presentationSubmit.type}")
             mainActivity.supportFragmentManager.run {
                 findFragmentByTag("show_invitation")?.let {
                     this.beginTransaction().remove(it).commit()

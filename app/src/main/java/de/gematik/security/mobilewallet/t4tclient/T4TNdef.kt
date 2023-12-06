@@ -10,7 +10,7 @@ import java.nio.ByteBuffer
 
 class T4TNdef(tag: Tag) {
 
-    private val TAG = "T4TNdef"
+    private val tag = T4TNdef::class.java.name
 
     val ok = byteArrayOf(
         0x90.toByte(), //SW1
@@ -49,7 +49,7 @@ class T4TNdef(tag: Tag) {
                 }
                 put(readBinary(offset, ndefFileLength - offset))
             }.array())
-        }.onFailure { Log.d(TAG, "failure reading tag: ${it.message}") }.getOrNull()
+        }.onFailure { Log.e(tag, "failure reading tag: ${it.message}") }.getOrNull()
     }
 
     private fun selectApp(aid: ByteArray) {
@@ -64,9 +64,9 @@ class T4TNdef(tag: Tag) {
         ) + aid + 0x00.toByte()
                 ).let { commandApdu ->
                 isoDep.transceive(commandApdu).let {
-                    Log.i(TAG, "sent: ${commandApdu.toHex()}")
+                    Log.d(tag, "sent: ${commandApdu.toHex()}")
                     check(it.contentEquals(ok))
-                    Log.i(TAG, "received: ${it.toHex()}")
+                    Log.d(tag, "received: ${it.toHex()}")
                 }
             }
     }
@@ -80,12 +80,11 @@ class T4TNdef(tag: Tag) {
             0x00.toByte(),
             0x0C.toByte(),
             0x02.toByte(),
-        ) +
-                fid).let { commandApdu ->
+        ) + fid).let { commandApdu ->
             isoDep.transceive(commandApdu).let {
-                Log.i(TAG, "sent: ${commandApdu.toHex()}")
+                Log.d(tag, "sent: ${commandApdu.toHex()}")
                 check(it.contentEquals(ok))
-                Log.i(TAG, "received: ${it.toHex()}")
+                Log.d(tag, "received: ${it.toHex()}")
             }
         }
 
@@ -103,10 +102,10 @@ class T4TNdef(tag: Tag) {
                 length.toByte()
                 ).let { commandApdu ->
                 isoDep.transceive(commandApdu).let {
-                    Log.i(TAG, "sent: ${commandApdu.toHex()}")
-                    Log.i(TAG, "received: ${it.toHex()}")
-                    it.sliceArray(it.size - 2..it.size - 1).let{
-                        check(it.contentEquals(ok)){"unexpected response: ${it.toHex()}"}
+                    Log.d(tag, "sent: ${commandApdu.toHex()}")
+                    Log.d(tag, "received: ${it.toHex()}")
+                    it.sliceArray(it.size - 2..it.size - 1).let {
+                        check(it.contentEquals(ok)) { "unexpected response: ${it.toHex()}" }
                     }
                     it.sliceArray(0..it.size - 3)
                 }

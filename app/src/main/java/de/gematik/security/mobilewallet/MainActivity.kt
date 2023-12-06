@@ -6,6 +6,7 @@ import android.nfc.NdefMessage
 import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.os.Bundle
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import androidx.activity.result.ActivityResultLauncher
@@ -30,10 +31,9 @@ import java.util.*
 
 class MainActivity : AppCompatActivity() {
 
-    private val TAG = "MainActivity"
+    private val tag = MainActivity::class.java.name
 
     lateinit var controller: Controller
-
     lateinit var qrCodeScannerLauncher: ActivityResultLauncher<ScanOptions>
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,22 +49,31 @@ class MainActivity : AppCompatActivity() {
         CryptoRegistry.registerSigner(ProofType.EcdsaSecp256r1Signature2019) {
             BiometricSigner(it)
         }
+        Log.i(tag, "biometric signer registered")
 
-        // scan qr code
+        // register qr code scanner
         qrCodeScannerLauncher = registerForActivityResult(ScanContract())
         {
             it.contents?.let { contents ->
                 val oob = URI.create(contents).query?.substringAfter("oob=", "")?.substringBefore("&")
                 if (oob?.isNotEmpty() == true) {
-                    val invitation = json.decodeFromString<Invitation>(String(Base64.getDecoder().decode(oob)))
-                    controller.acceptInvitation(invitation)
+                    Log.i(tag, "Qr code scanned: $oob")
+                    controller.acceptInvitation(
+                        json.decodeFromString<Invitation>(String(Base64.getDecoder().decode(oob))).also{
+                            Log.i(tag,"invitation = $it")
+                        }
+                    )
                 }
             }
         }
+        Log.i(tag, "qr code scanner registered")
 
         // start controller
         if (!this::controller.isInitialized) {
             controller = Controller(this@MainActivity).apply { start() }
+            Log.i(tag, "controller registered")
+        }else{
+            Log.i(tag, "controller already registered")
         }
 
         // deep link clicked
@@ -99,15 +108,14 @@ class MainActivity : AppCompatActivity() {
                     }.await()?.records?.get(0)?.toUri()?.getQueryParameter("oob")
                 }
             }
-
             else -> null
-        }?.let { oob ->
+        }?.let {
+            val decodedOob = String(Base64.getDecoder().decode(it))
+            Log.i(tag, "${if(intent?.action == NfcAdapter.ACTION_NDEF_DISCOVERED) "NDEF Tag" else "Type 4 Tag"} scanned: $it")
             controller.acceptInvitation(
-                json.decodeFromString<Invitation>(
-                    String(
-                        Base64.getDecoder().decode(oob)
-                    )
-                )
+                json.decodeFromString<Invitation>(decodedOob).also {
+                    Log.i(tag, "invitation = $it")
+                }
             )
         }
     }
