@@ -276,58 +276,67 @@ class Controller(val mainActivity: MainActivity) {
                 }
             }
             Log.i(tag, "invitation received from $to")
-            when (invitation.goalCode) {
-                GoalCode.REQUEST_PRESENTATION -> PresentationExchangeHolderProtocol.connect(
-                    connectionFactory,
-                    to = to,
-                    from = from,
-                    invitationId = invitation.id
-                ) {
-                    debugState.presentationExchangeInvitation = invitation
-                    debugState.presentationExchange = it.protocolState
-                    while (it.protocolState.state != PresentationExchangeHolderProtocol.State.CLOSED) {
-                        val message = runCatching {
-                            it.receive()
-                        }.onFailure { Log.e(tag, "exception: ${it.message}") }.getOrNull() ?: break
-                        Log.i(tag, "received: ${message.type}")
-                        if (!handleIncomingMessage(it, message)) break
+            kotlin.runCatching {
+                when (invitation.goalCode) {
+                    GoalCode.REQUEST_PRESENTATION -> PresentationExchangeHolderProtocol.connect(
+                        connectionFactory,
+                        to = to,
+                        from = from,
+                        invitationId = invitation.id
+                    ) {
+                        debugState.presentationExchangeInvitation = invitation
+                        debugState.presentationExchange = it.protocolState
+                        while (it.protocolState.state != PresentationExchangeHolderProtocol.State.CLOSED) {
+                            val message = runCatching {
+                                it.receive()
+                            }.onFailure { Log.e(tag, "exception: ${it.message}") }.getOrNull() ?: break
+                            Log.i(tag, "received: ${message.type}")
+                            if (!handleIncomingMessage(it, message)) break
+                        }
                     }
-                }
 
-                GoalCode.OFFER_PRESENTATION -> PresentationExchangeHolderProtocol.connect(
-                    connectionFactory,
-                    to = to,
-                    from = from,
-                    invitationId = invitation.id
-                ) {
-                    debugState.presentationExchangeInvitation = invitation
-                    debugState.presentationExchange = it.protocolState
-                    handleInvitation(it, invitation)
-                    while (it.protocolState.state != PresentationExchangeHolderProtocol.State.CLOSED) {
-                        val message = runCatching {
-                            it.receive()
-                        }.onFailure { Log.e(tag, "exception: ${it.message}") }.getOrNull() ?: break
-                        Log.i(tag, "received: ${message.type}")
-                        if (!handleIncomingMessage(it, message)) break
+                    GoalCode.OFFER_PRESENTATION -> PresentationExchangeHolderProtocol.connect(
+                        connectionFactory,
+                        to = to,
+                        from = from,
+                        invitationId = invitation.id
+                    ) {
+                        debugState.presentationExchangeInvitation = invitation
+                        debugState.presentationExchange = it.protocolState
+                        handleInvitation(it, invitation)
+                        while (it.protocolState.state != PresentationExchangeHolderProtocol.State.CLOSED) {
+                            val message = runCatching {
+                                it.receive()
+                            }.onFailure { Log.e(tag, "exception: ${it.message}") }.getOrNull() ?: break
+                            Log.i(tag, "received: ${message.type}")
+                            if (!handleIncomingMessage(it, message)) break
+                        }
                     }
-                }
 
-                else -> CredentialExchangeHolderProtocol.connect(
-                    connectionFactory,
-                    to = to,
-                    from = from,
-                    invitationId = invitation.id
-                ) {
-                    debugState.issueCredentialInvitation = invitation
-                    debugState.issueCredential = it.protocolState
-                    while (it.protocolState.state != CredentialExchangeHolderProtocol.State.CLOSED) {
-                        val message = runCatching {
-                            it.receive()
-                        }.onFailure { Log.e(tag, "exception: ${it.message}") }.getOrNull() ?: break
-                        Log.i(tag, "received: ${message.type}")
-                        if (!handleIncomingMessage(it, message)) break
+                    else -> CredentialExchangeHolderProtocol.connect(
+                        connectionFactory,
+                        to = to,
+                        from = from,
+                        invitationId = invitation.id
+                    ) {
+                        debugState.issueCredentialInvitation = invitation
+                        debugState.issueCredential = it.protocolState
+                        while (it.protocolState.state != CredentialExchangeHolderProtocol.State.CLOSED) {
+                            val message = runCatching {
+                                it.receive()
+                            }.onFailure { Log.e(tag, "exception: ${it.message}") }.getOrNull() ?: break
+                            Log.i(tag, "received: ${message.type}")
+                            if (!handleIncomingMessage(it, message)) break
+                        }
                     }
                 }
+            }.onFailure {
+                Log.e(tag, "inviter not reachable: $it")
+                Toast.makeText(
+                    mainActivity,
+                    "inviter not reachable: $to",
+                    Toast.LENGTH_LONG
+                ).show()
             }
         }
     }
@@ -363,7 +372,7 @@ class Controller(val mainActivity: MainActivity) {
                 Log.i(tag, "received: ${message.type}")
                 if (!handleIncomingMessage(protocol, message)) break
             }
-        }else{
+        } else {
             Log.i(tag, "invitation ignored due to missing or wrong invitation id")
         }
     }
@@ -535,17 +544,30 @@ class Controller(val mainActivity: MainActivity) {
             val presentationSubmit = PresentationSubmit(
                 UUID.randomUUID().toString(),
                 presentation = presentation.apply {
-                    asyncSign(
-                        ldProofHolder,
-                        Settings.biometricCredentialHolder.keyPair.privateKey!!,
-                        mainActivity
-                    )
+                    kotlin.runCatching {
+                        asyncSign(
+                            ldProofHolder,
+                            Settings.biometricCredentialHolder.keyPair.privateKey!!,
+                            mainActivity
+                        )
+                    }.onFailure {
+                        Log.e(tag, "failure signing presentation: ${it.message}")
+                        return false
+                    }
                 }
             )
 
             runCatching {
                 protocolInstance.submitPresentation(presentationSubmit)
-            }.onFailure { Toast.makeText(mainActivity, "$it", Toast.LENGTH_LONG).show() }.getOrThrow()
+            }.onFailure {
+                Toast.makeText(
+                    mainActivity,
+                    "couldn't sent: ${presentationSubmit.type}",
+                    Toast.LENGTH_LONG
+                ).show()
+                Log.e(tag, "couldn't sent: ${presentationSubmit.type}")
+                return false
+            }
             Log.i(tag, "sent: ${presentationSubmit.type}")
             mainActivity.supportFragmentManager.run {
                 findFragmentByTag("show_invitation")?.let {
@@ -555,7 +577,7 @@ class Controller(val mainActivity: MainActivity) {
             }
             Toast.makeText(
                 mainActivity,
-                "${presentation.verifiableCredential.size} credential${if(presentation.verifiableCredential.size >1) "s" else ""} sent",
+                "${presentation.verifiableCredential.size} credential${if (presentation.verifiableCredential.size > 1) "s" else ""} sent",
                 Toast.LENGTH_LONG
             ).show()
             return false
