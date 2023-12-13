@@ -501,6 +501,7 @@ class Controller(val mainActivity: MainActivity) {
         presentationRequest: PresentationRequest
     ): Boolean {
         presentationRequest.let {
+            Log.i(tag, "create presentation")
             val presentation = Presentation(
                 id = UUID.randomUUID().toString(),
                 verifiableCredential = mutableListOf(),
@@ -509,6 +510,7 @@ class Controller(val mainActivity: MainActivity) {
                     descriptorMap = mutableListOf()
                 )
             )
+            Log.i(tag, "add requested credentials")
             it.inputDescriptor.forEachIndexed { index, descriptor ->
                 val credentials = credentialStore.filterCredentials(descriptor.frame)
                 if (credentials.isEmpty()) {
@@ -532,6 +534,7 @@ class Controller(val mainActivity: MainActivity) {
                     )
                 )
             }
+            Log.i(tag, "prepare proof")
             val ldProofHolder = LdProof(
                 atContext = listOf(URI("https://www.w3.org/2018/credentials/v1")),
                 type = listOf(ProofType.EcdsaSecp256r1Signature2019.name),
@@ -545,6 +548,7 @@ class Controller(val mainActivity: MainActivity) {
                 UUID.randomUUID().toString(),
                 presentation = presentation.apply {
                     kotlin.runCatching {
+                        Log.i(tag, "sign proof")
                         asyncSign(
                             ldProofHolder,
                             Settings.biometricCredentialHolder.keyPair.privateKey!!,
@@ -556,7 +560,7 @@ class Controller(val mainActivity: MainActivity) {
                     }
                 }
             )
-
+            Log.i(tag, "submit presentation")
             runCatching {
                 protocolInstance.submitPresentation(presentationSubmit)
             }.onFailure {

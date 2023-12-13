@@ -102,6 +102,7 @@ class BiometricSigner(keyPair: KeyPair) : Signer, AsyncSigner {
 
     override suspend fun asyncSign(content: List<ByteArray>, context: Any): ByteArray {
         check(context.instanceOf(FragmentActivity::class))
+        Log.i(tag, "start authentication")
         runCatching {
             authenticate(context as FragmentActivity)
         }.onFailure {
